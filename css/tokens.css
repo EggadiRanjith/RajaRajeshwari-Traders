@@ -1,0 +1,240 @@
+/* =============================================================
+   RAJARAJESHWARI TRADERS
+   Classic Premium Design System v3
+   Visual identity: Institutional · Warm · Authoritative
+   References: Bloomberg Terminal · FT Analytics · Goldman Sachs
+   ============================================================= */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+:root {
+
+  /* ═══════════════════════════════════════════
+     BACKGROUNDS — Warm Parchment Palette
+     ═══════════════════════════════════════════ */
+  --bg:         #E9E6DF;    /* Classic parchment — not cold, not digital */
+  --bg-subtle:  #F0EDE7;    /* Lighter parchment */
+  --surface:    #FFFFFF;    /* Pure white cards */
+  --surface-2:  #F5F3EE;    /* Warm off-white — table headers, alternate */
+  --surface-3:  #EDEBE5;    /* Warm tertiary */
+  --surface-invert: #09090E;
+
+  /* ═══════════════════════════════════════════
+     TYPOGRAPHY — Warm Authoritative Tones
+     ═══════════════════════════════════════════ */
+  --text-1:  #0D1117;   /* Near-black with warmth */
+  --text-2:  #374151;   /* Dark slate */
+  --text-3:  #6B7280;   /* Mid gray */
+  --text-4:  #9CA3AF;   /* Muted */
+  --text-inv: #F4F1EB;  /* On dark */
+
+  /* ═══════════════════════════════════════════
+     BORDERS — Hairline Precision
+     ═══════════════════════════════════════════ */
+  --border:        rgba(0,0,0,0.09);   /* Hairline warm */
+  --border-md:     rgba(0,0,0,0.12);   /* Medium */
+  --border-strong: rgba(0,0,0,0.16);   /* Strong */
+  --border-focus:  #1A3262;
+
+  /* ═══════════════════════════════════════════
+     PRIMARY — Deep Corporate Navy
+     ═══════════════════════════════════════════ */
+  --primary:         #1A3262;    /* Deep institutional navy */
+  --primary-hover:   #14284E;
+  --primary-active:  #0F1E3C;
+  --primary-surface: #EBF0F8;
+  --primary-muted:   #C0CCDF;
+  --primary-text:    #1A3262;
+
+  /* ═══════════════════════════════════════════
+     GOLD — Classic Accent
+     ═══════════════════════════════════════════ */
+  --gold:         #C49A38;
+  --gold-light:   #D4AE52;
+  --gold-deep:    #A07820;
+  --gold-surface: rgba(196,154,56,0.10);
+  --gold-muted:   rgba(196,154,56,0.20);
+  --gold-text:    #F5D98A;   /* On dark backgrounds */
+
+  /* ═══════════════════════════════════════════
+     SUCCESS — Forest Green
+     ═══════════════════════════════════════════ */
+  --success:         #0B6640;
+  --success-hover:   #09522F;
+  --success-surface: #EDFAF3;
+  --success-muted:   #B2E0CB;
+  --success-text:    #0B6640;
+
+  /* ═══════════════════════════════════════════
+     WARNING — Deep Amber
+     ═══════════════════════════════════════════ */
+  --warning:         #9E4C00;
+  --warning-hover:   #7D3B00;
+  --warning-surface: #FFF7EC;
+  --warning-muted:   #FDD5A0;
+  --warning-text:    #9E4C00;
+
+  /* ═══════════════════════════════════════════
+     DANGER — Authoritative Red
+     ═══════════════════════════════════════════ */
+  --danger:          #8B1A1A;
+  --danger-hover:    #701414;
+  --danger-surface:  #FFF1F1;
+  --danger-muted:    #FBBCBC;
+  --danger-text:     #8B1A1A;
+
+  /* ═══════════════════════════════════════════
+     INFO — Steel Blue
+     ═══════════════════════════════════════════ */
+  --info:         #0C4A6E;
+  --info-surface: #EEF7FF;
+  --info-muted:   #BAD9EF;
+  --info-text:    #0C4A6E;
+
+  /* ═══════════════════════════════════════════
+     SIDEBAR — Premium Near-Black with Gold
+     ═══════════════════════════════════════════ */
+  --sidebar-bg:              #09090E;    /* Near-black with cool undertone */
+  --sidebar-header-bg:       #060608;   /* Deeper for brand */
+  --sidebar-hover:           rgba(255,255,255,0.038);
+  --sidebar-active-bg:       rgba(196,154,56,0.11);    /* Warm gold wash */
+  --sidebar-active-border:   var(--gold);               /* Gold left accent */
+  --sidebar-text:            #5E6E7E;
+  --sidebar-text-hover:      #9EB0BF;
+  --sidebar-text-active:     #F4E9C8;   /* Warm champagne */
+  --sidebar-divider:         rgba(255,255,255,0.042);
+  --sidebar-label:           rgba(255,255,255,0.20);
+  --sidebar-logo-bg:         rgba(196,154,56,0.12);
+  --sidebar-logo-border:     rgba(196,154,56,0.30);
+  --sidebar-w:               260px;
+
+  /* ═══════════════════════════════════════════
+     CHART PALETTE — Institutional 6-Color
+     ═══════════════════════════════════════════ */
+  --chart-1: #1A3262;   /* Navy */
+  --chart-2: #0B6640;   /* Forest green */
+  --chart-3: #9E4C00;   /* Amber */
+  --chart-4: #5B2D8E;   /* Deep violet */
+  --chart-5: #0C4A6E;   /* Steel blue */
+  --chart-6: #8B1A1A;   /* Deep red */
+
+  /* ═══════════════════════════════════════════
+     LAYOUT
+     ═══════════════════════════════════════════ */
+  --header-h:   64px;
+  --content-px: 40px;
+  --content-py: 36px;
+  --section-gap: 32px;
+
+  /* ═══════════════════════════════════════════
+     TYPOGRAPHY
+     ═══════════════════════════════════════════ */
+  --font:      'Inter', -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Courier New', monospace;
+
+  /* Scale */
+  --tx-xs:      11px;
+  --tx-sm:      12px;
+  --tx-base:    13px;
+  --tx-md:      14px;
+  --tx-lg:      15px;
+  --tx-xl:      16px;
+  --tx-2xl:     18px;
+  --tx-3xl:     22px;
+  --tx-4xl:     28px;
+  --tx-metric:  38px;    /* Dominant KPI numbers */
+  --tx-display: 44px;
+
+  /* Weights */
+  --fw-light:     300;
+  --fw-regular:   400;
+  --fw-medium:    500;
+  --fw-semibold:  600;
+  --fw-bold:      700;
+  --fw-extrabold: 800;
+  --fw-black:     900;
+
+  /* Line heights */
+  --lh-none:    1;
+  --lh-tight:   1.18;
+  --lh-snug:    1.32;
+  --lh-normal:  1.5;
+  --lh-relaxed: 1.65;
+
+  /* Tracking */
+  --ls-tight:   -0.03em;
+  --ls-snug:    -0.018em;
+  --ls-normal:   0;
+  --ls-wide:     0.05em;
+  --ls-wider:    0.08em;
+  --ls-caps:     0.10em;    /* For ALL-CAPS labels */
+
+  /* ═══════════════════════════════════════════
+     SPACING — 4px grid
+     ═══════════════════════════════════════════ */
+  --sp-1:   4px;
+  --sp-2:   8px;
+  --sp-3:   12px;
+  --sp-4:   16px;
+  --sp-5:   20px;
+  --sp-6:   24px;
+  --sp-7:   28px;
+  --sp-8:   32px;
+  --sp-9:   36px;
+  --sp-10:  40px;
+  --sp-12:  48px;
+  --sp-14:  56px;
+  --sp-16:  64px;
+
+  /* ═══════════════════════════════════════════
+     BORDER RADIUS — Classic Geometric
+     Deliberately tighter than modern SaaS
+     ═══════════════════════════════════════════ */
+  --r-none:  0;
+  --r-xs:    2px;
+  --r-sm:    4px;
+  --r-md:    6px;
+  --r-lg:    8px;
+  --r-xl:    10px;
+  --r-2xl:   14px;
+  --r-full:  9999px;
+
+  /* ═══════════════════════════════════════════
+     SHADOWS — Warm Paper Depth
+     ═══════════════════════════════════════════ */
+  --sh-hairline: 0 0 0 1px var(--border);
+  --sh-xs:   0 1px 3px rgba(0,0,0,0.07);
+  --sh-sm:   0 1px 5px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.04);
+  --sh-md:   0 4px 14px rgba(0,0,0,0.09), 0 1px 3px rgba(0,0,0,0.05);
+  --sh-lg:   0 10px 32px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.05);
+  --sh-xl:   0 20px 52px rgba(0,0,0,0.12), 0 6px 14px rgba(0,0,0,0.06);
+  --sh-modal: 0 32px 88px rgba(0,0,0,0.22), 0 8px 28px rgba(0,0,0,0.10);
+  --sh-card:  0 1px 4px rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.05);
+  --sh-inset: inset 0 1px 2px rgba(0,0,0,0.06);
+
+  /* Colored rings */
+  --ring-primary: 0 0 0 3px rgba(26,50,98,0.14);
+  --ring-gold:    0 0 0 3px rgba(196,154,56,0.20);
+  --ring-success: 0 0 0 3px rgba(11,102,64,0.14);
+  --ring-danger:  0 0 0 3px rgba(139,26,26,0.14);
+
+  /* ═══════════════════════════════════════════
+     MOTION
+     ═══════════════════════════════════════════ */
+  --ease-out:    cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.45, 0, 0.55, 1);
+  --t-fast:  100ms ease;
+  --t-base:  160ms ease;
+  --t-slow:  240ms ease;
+
+  /* ═══════════════════════════════════════════
+     Z-INDEX
+     ═══════════════════════════════════════════ */
+  --z-raised:   10;
+  --z-sticky:   50;
+  --z-dropdown: 100;
+  --z-sidebar:  200;
+  --z-overlay:  300;
+  --z-modal:    400;
+  --z-toast:    500;
+}

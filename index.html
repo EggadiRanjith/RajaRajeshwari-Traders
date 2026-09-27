@@ -1,0 +1,1921 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>RajaRajeshwari Traders — Business Intelligence Platform</title>
+  <meta name="description" content="Enterprise retail operations, inventory, sales and profit management system. RajaRajeshwari Traders, Hosur, Tamil Nadu.">
+  <meta name="theme-color" content="#071220">
+
+  <!-- Preconnect for fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <!-- Design System -->
+  <link rel="stylesheet" href="css/tokens.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/components.css?v=4.0">
+
+  <!-- Libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" defer></script>
+  <script src="https://unpkg.com/lucide@latest" defer></script>
+</head>
+<body>
+
+<div class="app-shell">
+
+  <!-- ══════════════════════════════════════
+       SIDEBAR
+       ══════════════════════════════════════ -->
+  <aside class="sidebar" id="sidebar" role="navigation" aria-label="Main navigation">
+
+    <!-- Brand -->
+    <div class="sidebar-brand">
+      <div class="sidebar-logo">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
+          <line x1="3" y1="6" x2="21" y2="6"/>
+          <path d="M16 10a4 4 0 0 1-8 0"/>
+        </svg>
+      </div>
+      <div class="sidebar-brand-text">
+        <div class="sidebar-brand-name">RajaRajeshwari Traders</div>
+        <div class="sidebar-brand-sub">Retail Operations</div>
+      </div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="sidebar-nav">
+      <div class="nav-section">
+        <div class="nav-section-label">Operations</div>
+        <button class="nav-item" data-page="make-sale" id="nav-item-make-sale">
+          <i data-lucide="plus-circle"></i>
+          <span class="nav-label">Make a Sale</span>
+        </button>
+        <button class="nav-item active" data-page="dashboard">
+          <i data-lucide="layout-dashboard"></i>
+          <span class="nav-label">Dashboard</span>
+        </button>
+        <button class="nav-item" data-page="sales">
+          <i data-lucide="trending-up"></i>
+          <span class="nav-label">Sales</span>
+        </button>
+        <button class="nav-item" data-page="purchases">
+          <i data-lucide="shopping-cart"></i>
+          <span class="nav-label">Purchases</span>
+        </button>
+        <button class="nav-item" data-page="stock">
+          <i data-lucide="package"></i>
+          <span class="nav-label">Inventory</span>
+        </button>
+      </div>
+
+      <div class="sidebar-divider"></div>
+
+      <div class="nav-section">
+        <div class="nav-section-label">Management</div>
+        <button class="nav-item" data-page="suppliers">
+          <i data-lucide="truck"></i>
+          <span class="nav-label">Suppliers</span>
+        </button>
+        <button class="nav-item" data-page="expenses">
+          <i data-lucide="receipt"></i>
+          <span class="nav-label">Expenses</span>
+        </button>
+        <button class="nav-item" data-page="wastage">
+          <i data-lucide="trash-2"></i>
+          <span class="nav-label">Wastage / Loss</span>
+        </button>
+        <button class="nav-item" data-page="reports">
+          <i data-lucide="bar-chart-2"></i>
+          <span class="nav-label">Reports</span>
+        </button>
+      </div>
+
+      <div class="sidebar-divider"></div>
+
+      <div class="nav-section">
+        <button class="nav-item" data-page="settings">
+          <i data-lucide="settings"></i>
+          <span class="nav-label">Settings</span>
+        </button>
+      </div>
+    </nav>
+
+    <!-- User Footer -->
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="sidebar-avatar">RV</div>
+        <div class="sidebar-user-info">
+          <div class="sidebar-user-name">R. Venkatesh</div>
+          <div class="sidebar-user-role">Owner · Administrator</div>
+        </div>
+        <i data-lucide="chevron-right" style="width:14px;height:14px;color:rgba(255,255,255,0.2);flex-shrink:0"></i>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ══════════════════════════════════════
+       MAIN AREA
+       ══════════════════════════════════════ -->
+  <div class="main-area">
+
+    <!-- Global Enterprise Error Boundary Banner -->
+    <div id="enterprise-error-banner" class="error-boundary-banner" style="display:none" role="alert">
+      <div class="err-content">
+        <i data-lucide="alert-octagon"></i>
+        <span>System Diagnostic: <strong id="err-boundary-msg">An unexpected runtime exception was intercepted</strong></span>
+      </div>
+      <div class="err-actions">
+        <button class="btn-restore" onclick="recoverSafeState()">Restore Safe View</button>
+        <button class="btn-dismiss" onclick="dismissErrorBanner()">Dismiss</button>
+      </div>
+    </div>
+
+    <!-- HEADER -->
+    <header class="header" id="header" role="banner">
+      <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="Toggle menu">
+        <i data-lucide="menu"></i>
+      </button>
+
+      <div class="header-title-group">
+        <div class="header-title" id="header-title">Overview</div>
+        <div class="header-breadcrumb" id="header-breadcrumb">Dashboard</div>
+      </div>
+
+      <div class="header-spacer"></div>
+
+      <div class="header-controls">
+        <div class="system-status">
+          <div class="system-status-dot"></div>
+          <span class="system-status-label">Live</span>
+        </div>
+
+        <div style="width:1px;height:20px;background:var(--border)"></div>
+
+        <span class="header-date">27 Sep 2026 · Sunday</span>
+
+        <div style="width:1px;height:20px;background:var(--border)"></div>
+
+        <div class="date-tabs" id="global-period-tabs" role="group" aria-label="Date range">
+          <button class="date-tab" data-period="today" onclick="setDashboardPeriod('today')">Today</button>
+          <button class="date-tab active" data-period="7d" onclick="setDashboardPeriod('7d')">7 Days</button>
+          <button class="date-tab" data-period="30d" onclick="setDashboardPeriod('30d')">30 Days</button>
+          <button class="date-tab" data-period="custom" onclick="setDashboardPeriod('custom')" title="Custom date range">&#128197; Range</button>
+          <button class="date-tab" data-period="single" onclick="setDashboardPeriod('single')" title="Single date">&#128197; Date</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Dashboard custom date pickers (shown below header when selected) -->
+    <div class="dash-custom-dates" id="dash-custom-dates">
+      <span class="tfilter-label">From</span>
+      <input type="date" class="tfilter-date-input" id="dash-from" style="width:140px" onchange="applyDashboardCustomDate()">
+      <span class="tfilter-date-sep">&rarr;</span>
+      <span class="tfilter-label">To</span>
+      <input type="date" class="tfilter-date-input" id="dash-to" style="width:140px" onchange="applyDashboardCustomDate()">
+      <button class="tfilter-apply" onclick="applyDashboardCustomDate()">Apply</button>
+    </div>
+    <div class="dash-single-date" id="dash-single-date">
+      <span class="tfilter-label">Select Date</span>
+      <input type="date" class="tfilter-date-input" id="dash-single" style="width:160px" onchange="applyDashboardSingleDate()">
+      <button class="tfilter-apply" onclick="applyDashboardSingleDate()">Apply</button>
+    </div>
+
+    <!-- ═══════════════════════════════════
+         PAGE CONTENT
+         ═══════════════════════════════════ -->
+    <main class="main-content" role="main">
+
+      <!-- ─────────────────────────────────
+           PAGE: MAKE A SALE (DIRECT BILLING)
+           ───────────────────────────────── -->
+      <section class="page" id="page-make-sale">
+        <div class="page-header">
+          <div class="page-heading-group">
+            <h1 class="page-heading">Make a Sale</h1>
+            <p class="page-heading-sub">Direct counter billing & transaction dispatch — no modal required</p>
+          </div>
+          <div class="page-actions">
+            <span class="badge badge-success"><i data-lucide="check-circle-2"></i> Live Counter Ready</span>
+            <span class="badge badge-neutral"><i data-lucide="clock"></i> Today: 27 Sep 2026</span>
+          </div>
+        </div>
+
+        <!-- Split Counter Console (Left: Billing Input Form, Right: Live Order Receipt Ticket) -->
+        <div class="ms-console-grid">
+          <!-- LEFT: Fast Billing Form Card -->
+          <div class="card ms-card ms-form-card">
+            <div class="ms-card-header">
+              <div class="ms-card-title-group">
+                <div class="ms-card-icon"><i data-lucide="calculator"></i></div>
+                <div>
+                  <h2 class="ms-card-title">Counter Billing Form</h2>
+                  <p class="ms-card-subtitle">Quick entry · Automatic inventory decrement & ledger posting</p>
+                </div>
+              </div>
+              <span class="badge badge-success"><i data-lucide="check-circle-2"></i> Live Counter</span>
+            </div>
+
+            <form id="make-sale-form" onsubmit="event.preventDefault(); handleMakeSaleSubmit();">
+              <!-- Row 1: Product, Seller Lot Selection, Date -->
+              <div class="ms-form-row ms-row-top" style="grid-template-columns: 1.2fr 1.6fr 0.9fr;">
+                <div class="form-group ms-fg-product" style="margin-bottom:0">
+                  <div class="ms-label-group">
+                    <label class="form-label" for="ms-product">Product <span class="required">*</span></label>
+                    <span id="ms-stock-badge" class="ms-stock-chip">Stock: --</span>
+                  </div>
+                  <select class="input" id="ms-product" required onchange="handleMakeSaleProductChange()">
+                    <option value="">Select product to sell…</option>
+                  </select>
+                </div>
+                <div class="form-group ms-fg-lot" style="margin-bottom:0">
+                  <div class="ms-label-group">
+                    <label class="form-label" for="ms-lot">Seller Batch / Sourced Lot <span class="required">*</span></label>
+                    <span id="ms-lot-badge" class="ms-stock-chip" style="color:var(--primary);font-weight:700">Lot: --</span>
+                  </div>
+                  <select class="input" id="ms-lot" required onchange="handleMakeSaleLotChange()">
+                    <option value="">Select seller lot…</option>
+                  </select>
+                </div>
+                <div class="form-group ms-fg-date" style="margin-bottom:0">
+                  <div class="ms-label-group">
+                    <label class="form-label" for="ms-date">Date <span class="required">*</span></label>
+                    <span class="ms-stock-chip" style="color:var(--text-3);font-size:11px;">Billing Day</span>
+                  </div>
+                  <input class="input date-default" type="date" id="ms-date" value="2026-09-27" required>
+                </div>
+              </div>
+
+              <!-- Row 2: Quantity, Selling Rate (Target & Live Variance), Customer Category, Buyer Name -->
+              <div class="ms-form-row ms-row-mid" style="grid-template-columns: 0.9fr 1.3fr 1.1fr 1.2fr;">
+                <div class="form-group ms-fg-qty" style="margin-bottom:0">
+                  <label class="form-label" for="ms-qty">Quantity <span class="required">*</span></label>
+                  <div class="input-wrap">
+                    <input class="input has-suffix" type="number" id="ms-qty" placeholder="0.00"
+                      step="any" min="0.1" required oninput="updateMakeSaleCalc()">
+                    <span class="input-suffix" id="ms-unit-label">KG</span>
+                  </div>
+                </div>
+                <div class="form-group ms-fg-rate" style="margin-bottom:0">
+                  <div class="ms-label-group">
+                    <label class="form-label" for="ms-rate">Selling Rate <span class="required">*</span></label>
+                    <span id="ms-target-rate-badge" class="ms-stock-chip" style="color:var(--primary);font-weight:700">Target: --</span>
+                  </div>
+                  <div class="input-wrap">
+                    <span class="input-prefix">₹</span>
+                    <input class="input has-prefix" type="number" id="ms-rate" placeholder="0.00"
+                      step="0.50" min="0.01" required oninput="updateMakeSaleCalc()">
+                  </div>
+                  <div id="ms-variance-tag" style="margin-top:5px;font-size:11px;font-weight:600;min-height:16px;"></div>
+                </div>
+                <div class="form-group ms-fg-cust-type" style="margin-bottom:0">
+                  <label class="form-label" for="ms-customer-type">Buyer Category <span class="required">*</span></label>
+                  <select class="input" id="ms-customer-type" onchange="handleCustomerTypeChange()">
+                    <option value="Walk-in">Walk-in (Retail)</option>
+                    <option value="Shopkeeper">Shopkeeper (Reseller)</option>
+                    <option value="Hotel">Hotel (Commercial Bulk)</option>
+                  </select>
+                </div>
+                <div class="form-group ms-fg-buyer" style="margin-bottom:0">
+                  <label class="form-label" for="ms-buyer">Customer / Business</label>
+                  <input class="input" type="text" id="ms-buyer" value="Walk-in" placeholder="Customer name">
+                </div>
+              </div>
+
+              <!-- Row 3: Payment Segmented Pills (Strict Zero-Credit Policy) & Notes -->
+              <div class="ms-form-row ms-row-bot" style="grid-template-columns: 1.4fr 1fr;">
+                <div class="form-group ms-fg-payment" style="margin-bottom:0">
+                  <label class="form-label">Payment Mode (No Credit Policy) <span class="required">*</span></label>
+                  <div class="ms-payment-pills" id="ms-payment-pills" role="radiogroup" aria-label="Payment Mode">
+                    <button type="button" class="ms-pay-pill active" data-pay="Cash"><i data-lucide="banknote"></i> Cash</button>
+                    <button type="button" class="ms-pay-pill" data-pay="UPI"><i data-lucide="smartphone"></i> UPI / GPay</button>
+                    <button type="button" class="ms-pay-pill" data-pay="Bank"><i data-lucide="building"></i> Bank</button>
+                  </div>
+                  <input type="hidden" id="ms-payment" value="Cash">
+                </div>
+                <div class="form-group ms-fg-notes" style="margin-bottom:0">
+                  <label class="form-label" for="ms-notes">Notes (Optional)</label>
+                  <input class="input" type="text" id="ms-notes" placeholder="Batch / Vehicle / Ref…">
+                </div>
+              </div>
+            </form>
+          </div>
+
+          <!-- RIGHT: Live Order Receipt Ticket Card -->
+          <div class="card ms-card ms-ticket-card">
+            <div class="ms-ticket-header">
+              <div class="ms-ticket-brand">
+                <span class="ms-ticket-title">Invoice Draft</span>
+                <span class="ms-ticket-id" id="ms-invoice-preview">#S041</span>
+              </div>
+              <span class="ms-ticket-badge">Live Counter</span>
+            </div>
+
+            <div class="ms-ticket-body">
+              <div class="ms-ticket-product" id="ms-ticket-prod-name">Select product above</div>
+              <div class="ms-ticket-qty-rate" id="ms-ticket-qty-rate">—</div>
+
+              <div class="ms-ticket-divider"></div>
+
+              <div class="ms-ticket-row">
+                <span class="ms-ticket-lbl">Seller Lot</span>
+                <span class="ms-ticket-val" id="ms-ticket-lot" style="font-size:11.5px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">—</span>
+              </div>
+              <div class="ms-ticket-row">
+                <span class="ms-ticket-lbl">Customer Tier</span>
+                <span class="badge" id="ms-ticket-tier" style="font-size:10.5px;padding:2px 8px;background:rgba(26,50,98,0.08);color:var(--primary);font-weight:700">WALK-IN</span>
+              </div>
+              <div class="ms-ticket-row">
+                <span class="ms-ticket-lbl">Subtotal</span>
+                <span class="ms-ticket-val" id="ms-subtotal">₹0.00</span>
+              </div>
+              <div class="ms-ticket-row">
+                <span class="ms-ticket-lbl">Estimated Cost</span>
+                <span class="ms-ticket-val muted" id="ms-cost">₹0.00</span>
+              </div>
+              <div class="ms-ticket-row ms-ticket-profit-row">
+                <span class="ms-ticket-lbl">Realized Margin</span>
+                <span class="ms-ticket-profit" id="ms-profit">₹0.00</span>
+              </div>
+
+              <div class="ms-ticket-total-wrap">
+                <div class="ms-ticket-total-lbl">Total Payable</div>
+                <div class="ms-ticket-total-amt" id="ms-total-amt">₹0.00</div>
+              </div>
+            </div>
+
+            <div class="ms-ticket-actions">
+              <button type="button" class="btn btn-secondary ms-btn-reset" onclick="resetMakeSaleForm()">
+                <i data-lucide="rotate-ccw"></i> Reset
+              </button>
+              <button type="button" class="btn btn-primary ms-btn-record" id="btn-make-sale-submit" onclick="handleMakeSaleSubmit()">
+                <i data-lucide="check-circle-2"></i> Record Sale (Enter)
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Last 10 Transactions Table Card -->
+        <div class="section ms-ledger-section">
+          <div class="card ms-ledger-card">
+            <div class="ms-ledger-header">
+              <div class="ms-ledger-title-group">
+                <div class="ms-card-icon" style="width:30px;height:30px;background:rgba(26,50,98,0.06);color:var(--primary);"><i data-lucide="history"></i></div>
+                <div>
+                  <h3 class="ms-ledger-title">Past Sales Ledger</h3>
+                  <p class="ms-ledger-sub">Last 10 counter transactions — real-time verification</p>
+                </div>
+              </div>
+              <button class="btn btn-ghost btn-sm" onclick="navigateTo('sales')">
+                View all sales <i data-lucide="arrow-right"></i>
+              </button>
+            </div>
+            <div class="table-wrap ms-table-wrap">
+              <div class="table-overflow">
+                <table class="table-compact">
+                  <thead>
+                    <tr>
+                      <th>Sale ID</th>
+                      <th>Date</th>
+                      <th>Product</th>
+                      <th>Seller Lot</th>
+                      <th class="num">Qty</th>
+                      <th class="num">Rate</th>
+                      <th class="num">Amount</th>
+                      <th>Customer Tier</th>
+                      <th>Buyer</th>
+                      <th>Payment</th>
+                    </tr>
+                  </thead>
+                  <tbody id="make-sale-last10-tbody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ─────────────────────────────────
+           PAGE: DASHBOARD
+           ───────────────────────────────── -->
+      <section class="page active" id="page-dashboard">
+
+        <!-- Page Header -->
+        <div class="page-header">
+          <div class="page-heading-group">
+            <h1 class="page-heading">Business Overview</h1>
+            <p class="page-heading-sub">Real-time performance across all operations</p>
+          </div>
+          <div class="page-actions">
+            <button class="btn btn-secondary" onclick="openModal('new-wastage')" id="btn-new-wastage-dash" style="color:var(--danger)">
+              <i data-lucide="trash-2"></i> Record Wastage
+            </button>
+            <button class="btn btn-secondary" onclick="openModal('new-purchase')" id="btn-new-purchase-dash">
+              <i data-lucide="plus"></i> New Purchase
+            </button>
+            <button class="btn btn-primary btn-lg" onclick="openModal('new-sale')" id="btn-new-sale-dash">
+              <i data-lucide="plus"></i> Record Sale
+            </button>
+          </div>
+        </div>
+
+        <!-- Attention Alert -->
+        <div class="alert alert-warning mb-8" id="low-stock-alert" role="alert" style="display:none">
+          <i data-lucide="alert-triangle"></i>
+          <div class="alert-content">
+            <div class="alert-title">Stock Attention Required</div>
+            <div id="low-stock-details"></div>
+          </div>
+        </div>
+
+        <!-- Performance Strip -->
+        <div class="perf-strip mb-8" id="perf-strip">
+          <div class="perf-item">
+            <div class="perf-label">Today's Revenue</div>
+            <div class="perf-value" id="strip-revenue">—</div>
+            <div class="perf-sub" id="strip-revenue-sub">Loading…</div>
+          </div>
+          <div class="perf-item">
+            <div class="perf-label">Transactions</div>
+            <div class="perf-value" id="strip-txns">—</div>
+            <div class="perf-sub">sales today</div>
+          </div>
+          <div class="perf-item">
+            <div class="perf-label">Gross Profit</div>
+            <div class="perf-value" id="strip-profit" style="color:var(--success)">—</div>
+            <div class="perf-sub" id="strip-margin">margin</div>
+          </div>
+          <div class="perf-item">
+            <div class="perf-label">Today's Purchases</div>
+            <div class="perf-value" id="strip-purchases" style="color:var(--primary)">—</div>
+            <div class="perf-sub">sourced inventory</div>
+          </div>
+          <div class="perf-item">
+            <div class="perf-label">Stock Value</div>
+            <div class="perf-value" id="strip-stock">—</div>
+            <div class="perf-sub">at avg cost</div>
+          </div>
+        </div>
+
+        <!-- KPI Grid (3 per row on desktop) -->
+        <div class="kpi-grid" id="kpi-grid" role="region" aria-label="Key performance indicators">
+          <!-- Rendered by JS -->
+        </div>
+
+        <!-- Charts Row 1: Revenue Trend (wider) + Stock Donut -->
+        <div class="chart-grid-2-1 mb-7" style="margin-bottom:var(--section-gap)">
+
+          <div class="chart-card">
+            <div class="chart-header">
+              <div>
+                <div class="chart-title">Revenue &amp; Profit Trend</div>
+                <div class="chart-subtitle" id="chart-revenue-subtitle">Daily performance — last 7 days</div>
+              </div>
+              <div class="chart-legend">
+                <div class="chart-legend-item">
+                  <div class="chart-legend-dot" style="background:var(--chart-1)"></div>
+                  Revenue
+                </div>
+                <div class="chart-legend-item">
+                  <div class="chart-legend-dot" style="background:var(--chart-2)"></div>
+                  Net Profit
+                </div>
+              </div>
+            </div>
+            <div class="chart-canvas-wrap h-300">
+              <canvas id="chart-revenue-trend" aria-label="Revenue and profit trend"></canvas>
+            </div>
+          </div>
+
+          <div class="chart-card">
+            <div class="chart-header">
+              <div>
+                <div class="chart-title">Stock Distribution</div>
+                <div class="chart-subtitle">By product value</div>
+              </div>
+            </div>
+            <div class="chart-canvas-wrap h-300">
+              <canvas id="chart-stock-donut" aria-label="Stock value distribution"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section: Multi-Dimensional Profit & Loss (By Product & By Seller) -->
+        <div class="section mb-8" style="margin-bottom:var(--section-gap)">
+          <div class="section-header" style="margin-bottom:var(--sp-4);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:var(--sp-3)">
+            <div>
+              <div class="section-title">P&amp;L Performance Intelligence</div>
+              <div class="section-subtitle">Realized gross profit, sourced cost, and net margins across products and seller sources</div>
+            </div>
+            <div class="pnl-toggle-group" style="display:inline-flex;background:var(--surface-2);padding:3px;border-radius:var(--r-md);border:1px solid var(--border-md)">
+              <button type="button" class="btn btn-sm pnl-tab active" id="pnl-tab-product" onclick="switchPnLView('product')">By Product</button>
+              <button type="button" class="btn btn-sm pnl-tab" id="pnl-tab-seller" onclick="switchPnLView('seller')">By Seller / Supplier</button>
+            </div>
+          </div>
+          <div class="card" style="padding:0;overflow:hidden;border:1px solid var(--border-md);border-radius:var(--r-xl);box-shadow:var(--sh-card)">
+            <div class="table-overflow">
+              <table class="table-compact" id="pnl-table">
+                <thead id="pnl-table-head"></thead>
+                <tbody id="pnl-table-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Charts Row 2: Customer Tier Segments (Walk-in, Shopkeeper, Hotel) + Product Sales -->
+        <div class="chart-grid-1-1" style="margin-bottom:var(--section-gap)">
+          <div class="chart-card">
+            <div class="chart-header">
+              <div>
+                <div class="chart-title">Customer Tier Intelligence</div>
+                <div class="chart-subtitle">Revenue &amp; volume by buyer: Walk-in, Shopkeeper, Hotel</div>
+              </div>
+            </div>
+            <div class="chart-canvas-wrap h-280">
+              <canvas id="chart-customer-segments" aria-label="Customer tier breakdown"></canvas>
+            </div>
+          </div>
+
+          <div class="chart-card">
+            <div class="chart-header">
+              <div>
+                <div class="chart-title">Revenue by Product</div>
+                <div class="chart-subtitle">Contribution — selected period</div>
+              </div>
+            </div>
+            <div class="chart-canvas-wrap h-280">
+              <canvas id="chart-sales-product" aria-label="Sales by product"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════════
+             BUYER INTELLIGENCE & PRODUCT STOCK VELOCITY MATRIX
+             ═══════════════════════════════════════════════════════════ -->
+        <div class="chart-grid-1-1" style="margin-bottom:var(--section-gap)">
+          <!-- Left: Buyer Volume & Revenue Ledger -->
+          <div class="card" style="padding:0;overflow:hidden;border:1px solid var(--border-md);border-radius:var(--r-xl);box-shadow:var(--sh-card)">
+            <div style="padding:var(--sp-4) var(--sp-5);background:var(--surface-2);border-bottom:1px solid var(--border-md);display:flex;align-items:center;justify-content:space-between;">
+              <div>
+                <div style="font-weight:700;font-size:15px;color:var(--text-1);display:flex;align-items:center;gap:8px;">
+                  <i data-lucide="users" style="width:16px;height:16px;color:var(--primary)"></i> Buyer Revenue & Volume
+                </div>
+                <div style="font-size:12px;color:var(--text-3);margin-top:2px;">Purchasing volume (KG) & revenue for selected period</div>
+              </div>
+              <span class="badge badge-primary" style="font-size:11px">Client Accounts</span>
+            </div>
+            <div class="table-overflow" style="max-height:320px;">
+              <table class="table-compact">
+                <thead>
+                  <tr>
+                    <th>Buyer / Client</th>
+                    <th>Tier</th>
+                    <th class="num">Orders</th>
+                    <th class="num">Volume (KG)</th>
+                    <th class="num">Revenue</th>
+                  </tr>
+                </thead>
+                <tbody id="buyer-revenue-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Right: Product Stock Velocity & Depletion -->
+          <div class="card" style="padding:0;overflow:hidden;border:1px solid var(--border-md);border-radius:var(--r-xl);box-shadow:var(--sh-card)">
+            <div style="padding:var(--sp-4) var(--sp-5);background:var(--surface-2);border-bottom:1px solid var(--border-md);display:flex;align-items:center;justify-content:space-between;">
+              <div>
+                <div style="font-weight:700;font-size:15px;color:var(--text-1);display:flex;align-items:center;gap:8px;">
+                  <i data-lucide="activity" style="width:16px;height:16px;color:var(--success)"></i> Product Stock Velocity
+                </div>
+                <div style="font-size:12px;color:var(--text-3);margin-top:2px;">Today's sales vs 7-day velocity vs remaining inventory</div>
+              </div>
+              <span class="badge badge-neutral" style="font-size:11px">Depletion Rate</span>
+            </div>
+            <div class="table-overflow" style="max-height:320px;">
+              <table class="table-compact">
+                <thead>
+                  <tr>
+                    <th>Product</th>
+                    <th class="num">Stock</th>
+                    <th class="num">Sold Today</th>
+                    <th class="num">Sold (7D)</th>
+                    <th class="num">Run Rate</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="product-velocity-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Transactions -->
+        <div class="section">
+          <div class="section-header">
+            <div>
+              <div class="section-title">Recent Transactions</div>
+              <div class="section-subtitle">Latest 8 sales across all products</div>
+            </div>
+            <button class="btn btn-ghost btn-sm" onclick="navigateTo('sales')">
+              View all <i data-lucide="arrow-right"></i>
+            </button>
+          </div>
+          <div class="table-wrap">
+            <div class="table-overflow">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Sale ID</th>
+                    <th>Date</th>
+                    <th>Product</th>
+                    <th class="num">Qty</th>
+                    <th class="num">Rate</th>
+                    <th class="num">Amount</th>
+                    <th>Buyer</th>
+                    <th>Payment</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="recent-transactions-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ─────────────────────────────────
+           PAGE: SALES
+           ───────────────────────────────── -->
+      <section class="page" id="page-sales">
+        <div class="page-header">
+          <div class="page-heading-group">
+            <h1 class="page-heading">Sales</h1>
+            <p class="page-heading-sub">All recorded sales transactions</p>
+          </div>
+          <div class="page-actions">
+            <button class="btn btn-primary btn-lg" onclick="openModal('new-sale')" id="btn-new-sale">
+              <i data-lucide="plus"></i> New Sale
+            </button>
+          </div>
+        </div>
+
+        <div class="stat-row" id="sales-stats"></div>
+
+        <div class="table-wrap">
+          <div class="table-toolbar">
+            <span class="table-toolbar-title">All Transactions</span>
+            <div class="search-wrap">
+              <i data-lucide="search"></i>
+              <input type="search" class="search-input" placeholder="Search product, buyer, ID…"
+                oninput="handleSearch('sales', this.value)" id="sales-search" aria-label="Search sales">
+            </div>
+          </div>
+          <!-- Sales filter bar -->
+          <div class="table-filter-bar" id="sales-filter-bar">
+            <span class="tfilter-label">Period</span>
+            <button class="tfilter-btn" data-mode="today" onclick="setTableFilter('sales','today')">Today</button>
+            <button class="tfilter-btn active" data-mode="7d" onclick="setTableFilter('sales','7d')">7 Days</button>
+            <button class="tfilter-btn" data-mode="30d" onclick="setTableFilter('sales','30d')">30 Days</button>
+            <div class="tfilter-sep"></div>
+            <button class="tfilter-btn" data-mode="range" onclick="setTableFilter('sales','range')">&#128197; Date Range</button>
+            <div class="tfilter-date-group" id="sales-filter-range">
+              <input type="date" class="tfilter-date-input" id="sales-from" onchange="applyCustomFilter('sales')">
+              <span class="tfilter-date-sep">&rarr;</span>
+              <input type="date" class="tfilter-date-input" id="sales-to" onchange="applyCustomFilter('sales')">
+              <button class="tfilter-apply" onclick="applyCustomFilter('sales')">Apply</button>
+            </div>
+            <button class="tfilter-btn" data-mode="single" onclick="setTableFilter('sales','single')">&#128197; Single Date</button>
+            <div class="tfilter-date-group" id="sales-filter-single">
+              <input type="date" class="tfilter-date-input" id="sales-date" onchange="applyCustomFilter('sales')">
+              <button class="tfilter-apply" onclick="applyCustomFilter('sales')">Apply</button>
+            </div>
+          </div>
+          <div class="table-overflow">
+            <table>
+              <thead>
+                <tr>
+                  <th>Sale ID</th>
+                  <th>Date</th>
+                  <th>Product</th>
+                  <th>Seller Lot</th>
+                  <th class="num">Qty</th>
+                  <th class="num">Rate</th>
+                  <th class="num">Amount</th>
+                  <th class="num">Gross Profit</th>
+                  <th>Customer Tier</th>
+                  <th>Buyer</th>
+                  <th>Payment</th>
+                </tr>
+              </thead>
+              <tbody id="sales-table-body"></tbody>
+            </table>
+          </div>
+          <div class="table-footer">
+            <span class="table-count" id="sales-count"></span>
+            <div class="pagination" id="sales-pagination"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─────────────────────────────────
+           PAGE: PURCHASES
+           ───────────────────────────────── -->
+      <section class="page" id="page-purchases">
+        <div class="page-header">
+          <div class="page-heading-group">
+            <h1 class="page-heading">Purchases</h1>
+            <p class="page-heading-sub">Supplier purchase orders and payment status</p>
+          </div>
+          <div class="page-actions">
+            <button class="btn btn-primary btn-lg" onclick="openModal('new-purchase')" id="btn-new-purchase">
+              <i data-lucide="plus"></i> New Purchase
+            </button>
+          </div>
+        </div>
+
+        <div class="stat-row" id="purchases-stats"></div>
+
+        <div class="table-wrap">
+          <div class="table-toolbar">
+            <span class="table-toolbar-title">All Purchase Orders</span>
+            <div class="search-wrap">
+              <i data-lucide="search"></i>
+              <input type="search" class="search-input" placeholder="Search supplier, product…"
+                oninput="handleSearch('purchases', this.value)" id="purchases-search" aria-label="Search purchases">
+            </div>
+          </div>
+          <!-- Purchases filter bar -->
+          <div class="table-filter-bar" id="purchases-filter-bar">
+            <span class="tfilter-label">Period</span>
+            <button class="tfilter-btn" data-mode="today" onclick="setTableFilter('purchases','today')">Today</button>
+            <button class="tfilter-btn active" data-mode="7d" onclick="setTableFilter('purchases','7d')">7 Days</button>
+            <button class="tfilter-btn" data-mode="30d" onclick="setTableFilter('purchases','30d')">30 Days</button>
+            <div class="tfilter-sep"></div>
+            <button class="tfilter-btn" data-mode="range" onclick="setTableFilter('purchases','range')">&#128197; Date Range</button>
+            <div class="tfilter-date-group" id="purchases-filter-range">
+              <input type="date" class="tfilter-date-input" id="purchases-from" onchange="applyCustomFilter('purchases')">
+              <span class="tfilter-date-sep">&rarr;</span>
+              <input type="date" class="tfilter-date-input" id="purchases-to" onchange="applyCustomFilter('purchases')">
+              <button class="tfilter-apply" onclick="applyCustomFilter('purchases')">Apply</button>
+            </div>
+            <button class="tfilter-btn" data-mode="single" onclick="setTableFilter('purchases','single')">&#128197; Single Date</button>
+            <div class="tfilter-date-group" id="purchases-filter-single">
+              <input type="date" class="tfilter-date-input" id="purchases-date" onchange="applyCustomFilter('purchases')">
+              <button class="tfilter-apply" onclick="applyCustomFilter('purchases')">Apply</button>
+            </div>
+          </div>
+          <div class="table-overflow">
+            <table>
+              <thead>
+                <tr>
+                  <th>PO / Lot ID</th>
+                  <th>Date</th>
+                  <th>Seller / Supplier</th>
+                  <th>Product</th>
+                  <th class="num">Qty</th>
+                  <th class="num">Total Cost</th>
+                  <th class="num">Avg Unit Cost</th>
+                  <th class="num">Target Rate</th>
+                  <th class="num">Remaining Stock</th>
+                  <th>Payment</th>
+                </tr>
+              </thead>
+              <tbody id="purchases-table-body"></tbody>
+            </table>
+          </div>
+          <div class="table-footer">
+            <span class="table-count" id="purchases-count"></span>
+            <div class="pagination" id="purchases-pagination"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─────────────────────────────────
+           PAGE: INVENTORY
+           ───────────────────────────────── -->
+      <section class="page" id="page-stock">
+        <div class="page-header">
+          <div class="page-heading-group">
+            <h1 class="page-heading">Inventory</h1>
+            <p class="page-heading-sub">Current stock levels, values, and reorder status</p>
+          </div>
+          <div class="page-actions">
+            <div class="search-wrap">
+              <i data-lucide="search"></i>
+              <input type="search" class="search-input" placeholder="Search product…"
+                oninput="handleSearch('stock', this.value)" id="stock-search" aria-label="Search inventory">
+            </div>
+          </div>
+        </div>
+
+        <div class="stat-row" id="stock-summary"></div>
+
+        <!-- Stock + Chart layout -->
+        <div class="chart-grid-2-1" style="margin-bottom:var(--section-gap)">
+
+          <div class="table-wrap">
+            <div class="table-toolbar">
+              <span class="table-toolbar-title">All Products</span>
+            </div>
+            <!-- Stock status filter bar -->
+            <div class="table-filter-bar" id="stock-filter-bar">
+              <span class="tfilter-label">Filter</span>
+              <button class="tfilter-status-btn active" data-status="all" onclick="setStockFilter('all')">All Items</button>
+              <button class="tfilter-status-btn" data-status="healthy" onclick="setStockFilter('healthy')">Healthy</button>
+              <button class="tfilter-status-btn" data-status="low" onclick="setStockFilter('low')">Low Stock</button>
+              <button class="tfilter-status-btn" data-status="out" onclick="setStockFilter('out')">Out of Stock</button>
+            </div>
+            <div class="table-overflow">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Product</th>
+                    <th>Category</th>
+                    <th class="num">Current Stock</th>
+                    <th class="num">Reorder Level</th>
+                    <th class="num">Avg Cost / Unit</th>
+                    <th class="num">Stock Value</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="stock-table-body"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="chart-card">
+            <div class="chart-header">
+              <div>
+                <div class="chart-title">Value Distribution</div>
+                <div class="chart-subtitle">By product at avg cost</div>
+              </div>
+            </div>
+            <div class="chart-canvas-wrap h-320">
+              <canvas id="chart-stock-donut-page" aria-label="Stock value distribution"></canvas>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─────────────────────────────────
+           PAGE: SUPPLIERS
+           ───────────────────────────────── -->
+      <section class="page" id="page-suppliers">
+        <div class="page-header">
+          <div class="page-heading-group">
+            <h1 class="page-heading">Suppliers</h1>
+            <p class="page-heading-sub">Vendor relationships, purchase history, and outstanding dues</p>
+          </div>
+          <div class="page-actions">
+            <div class="search-wrap">
+              <i data-lucide="search"></i>
+              <input type="search" class="search-input" placeholder="Search supplier, location…"
+                oninput="handleSearch('suppliers', this.value)" id="suppliers-search" aria-label="Search suppliers">
+            </div>
+            <button class="btn btn-primary" id="btn-new-supplier" onclick="openModal('new-supplier')">
+              <i data-lucide="plus"></i> Add Supplier
+            </button>
+          </div>
+        </div>
+
+        <div class="kpi-grid" id="supplier-kpis" style="grid-template-columns:repeat(3,1fr);margin-bottom:var(--section-gap)"></div>
+
+        <div class="table-wrap">
+          <div class="table-toolbar">
+            <span class="table-toolbar-title">Supplier Directory</span>
+          </div>
+          <div class="table-overflow">
+            <table>
+              <thead>
+                <tr>
+                  <th>Supplier Name</th>
+                  <th>Phone</th>
+                  <th>Location</th>
+                  <th>Category</th>
+                  <th class="num">Total Purchases</th>
+                  <th class="num">Outstanding</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="suppliers-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─────────────────────────────────
+           PAGE: EXPENSES
+           ───────────────────────────────── -->
+      <section class="page" id="page-expenses">
+        <div class="page-header">
+          <div class="page-heading-group">
+            <h1 class="page-heading">Expenses</h1>
+            <p class="page-heading-sub">Operational costs and overhead tracking</p>
+          </div>
+          <div class="page-actions">
+            <button class="btn btn-primary" onclick="openModal('new-expense')" id="btn-new-expense">
+              <i data-lucide="plus"></i> New Expense
+            </button>
+          </div>
+        </div>
+
+        <div class="stat-row" id="expenses-stats"></div>
+
+        <div class="chart-grid-2-1" style="margin-bottom:var(--section-gap)">
+          <div class="table-wrap">
+            <div class="table-toolbar">
+              <span class="table-toolbar-title">All Expense Records</span>
+              <div class="search-wrap">
+                <i data-lucide="search"></i>
+                <input type="search" class="search-input" placeholder="Search description, category…"
+                  oninput="handleSearch('expenses', this.value)" id="expenses-search">
+              </div>
+            </div>
+            <!-- Expenses filter bar -->
+            <div class="table-filter-bar" id="expenses-filter-bar">
+              <span class="tfilter-label">Period</span>
+              <button class="tfilter-btn" data-mode="today" onclick="setTableFilter('expenses','today')">Today</button>
+              <button class="tfilter-btn active" data-mode="7d" onclick="setTableFilter('expenses','7d')">7 Days</button>
+              <button class="tfilter-btn" data-mode="30d" onclick="setTableFilter('expenses','30d')">30 Days</button>
+              <div class="tfilter-sep"></div>
+              <button class="tfilter-btn" data-mode="range" onclick="setTableFilter('expenses','range')">&#128197; Date Range</button>
+              <div class="tfilter-date-group" id="expenses-filter-range">
+                <input type="date" class="tfilter-date-input" id="expenses-from" onchange="applyCustomFilter('expenses')">
+                <span class="tfilter-date-sep">&rarr;</span>
+                <input type="date" class="tfilter-date-input" id="expenses-to" onchange="applyCustomFilter('expenses')">
+                <button class="tfilter-apply" onclick="applyCustomFilter('expenses')">Apply</button>
+              </div>
+              <button class="tfilter-btn" data-mode="single" onclick="setTableFilter('expenses','single')">&#128197; Single Date</button>
+              <div class="tfilter-date-group" id="expenses-filter-single">
+                <input type="date" class="tfilter-date-input" id="expenses-date" onchange="applyCustomFilter('expenses')">
+                <button class="tfilter-apply" onclick="applyCustomFilter('expenses')">Apply</button>
+              </div>
+            </div>
+            <div class="table-overflow">
+              <table>
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Date</th>
+                    <th>Category</th>
+                    <th>Description</th>
+                    <th class="num">Amount</th>
+                    <th>Paid By</th>
+                  </tr>
+                </thead>
+                <tbody id="expenses-table-body"></tbody>
+              </table>
+            </div>
+            <div class="table-footer">
+              <span class="table-count" id="expenses-count"></span>
+              <div class="pagination" id="expenses-pagination"></div>
+            </div>
+          </div>
+
+          <div class="chart-card">
+            <div class="chart-header">
+              <div>
+                <div class="chart-title">By Category</div>
+                <div class="chart-subtitle">Selected period breakdown</div>
+              </div>
+            </div>
+            <div class="chart-canvas-wrap h-320">
+              <canvas id="chart-expense-category"></canvas>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─────────────────────────────────
+           PAGE: REPORTS
+           ───────────────────────────────── -->
+      <section class="page" id="page-reports">
+        <div class="page-header">
+          <div class="page-heading-group">
+            <h1 class="page-heading">Reports</h1>
+            <p class="page-heading-sub">Analytical business intelligence — selected period</p>
+          </div>
+          <div class="page-actions">
+            <button class="btn btn-secondary" onclick="showToast('Generating report…','')">
+              <i data-lucide="download"></i> Export PDF
+            </button>
+          </div>
+        </div>
+
+        <!-- P&L + Trend Charts -->
+        <div class="chart-grid-3-2" style="margin-bottom:var(--section-gap)">
+
+          <div style="display:flex;flex-direction:column;gap:var(--section-gap)">
+            <!-- Revenue vs Purchases Trend -->
+            <div class="chart-card">
+              <div class="chart-header">
+                <div>
+                  <div class="chart-title">Revenue vs Purchases — 7 Day Trend</div>
+                  <div class="chart-subtitle">Daily comparison of sales and cost of procurement</div>
+                </div>
+                <div class="chart-legend">
+                  <div class="chart-legend-item">
+                    <div class="chart-legend-dot" style="background:var(--chart-1)"></div>Revenue
+                  </div>
+                  <div class="chart-legend-item">
+                    <div class="chart-legend-dot" style="background:var(--chart-3)"></div>Purchases
+                  </div>
+                </div>
+              </div>
+              <div class="chart-canvas-wrap h-280">
+                <canvas id="chart-purchase-sales-trend"></canvas>
+              </div>
+            </div>
+
+            <!-- P&L Breakdown Bar -->
+            <div class="chart-card">
+              <div class="chart-header">
+                <div>
+                  <div class="chart-title">Profit &amp; Loss Breakdown</div>
+                  <div class="chart-subtitle">Revenue → Cost → Profit decomposition</div>
+                </div>
+              </div>
+              <div class="chart-canvas-wrap h-240">
+                <canvas id="chart-pl"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- P&L Statement -->
+          <div class="card card-lg" style="height:fit-content">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Profit &amp; Loss Statement</div>
+                <div class="card-subtitle" id="pl-period-label">Selected period</div>
+              </div>
+            </div>
+            <div id="pl-summary"></div>
+          </div>
+        </div>
+
+        <!-- Top Products Table -->
+        <div class="section">
+          <div class="section-header">
+            <div>
+              <div class="section-title">Product Performance</div>
+              <div class="section-subtitle">Revenue, cost and margin by product — selected period</div>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <div class="table-overflow">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Product</th>
+                    <th class="num">Units Sold</th>
+                    <th class="num">Revenue</th>
+                    <th class="num">COGS</th>
+                    <th class="num">Gross Profit</th>
+                    <th class="num">Margin %</th>
+                  </tr>
+                </thead>
+                <tbody id="reports-product-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─────────────────────────────────
+           PAGE: SETTINGS
+           ───────────────────────────────── -->
+      <section class="page" id="page-settings">
+        <div class="page-header">
+          <div class="page-heading-group">
+            <h1 class="page-heading">Settings</h1>
+            <p class="page-heading-sub">Business configuration and preferences</p>
+          </div>
+        </div>
+
+        <!-- Settings: Full-width 2-column grid -->
+        <div class="settings-grid">
+
+          <!-- LEFT COLUMN -->
+          <div style="display:flex;flex-direction:column;gap:var(--section-gap)">
+
+            <!-- Business Information -->
+            <div class="card card-lg">
+              <div class="card-header">
+                <div>
+                  <div class="card-title">Business Information</div>
+                  <div class="card-subtitle">Core business details used across all documents</div>
+                </div>
+                <div style="width:36px;height:36px;background:var(--primary-surface);border:1px solid var(--primary-muted);border-radius:var(--r-lg);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                  <i data-lucide="building-2" style="width:15px;height:15px;color:var(--primary)"></i>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:var(--sp-5)">
+                <div class="form-row">
+                  <div class="form-group">
+                    <label class="form-label" for="settings-business-name">Business Name</label>
+                    <input class="input" id="settings-business-name" type="text">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label" for="settings-owner">Owner / Proprietor</label>
+                    <input class="input" id="settings-owner" type="text">
+                  </div>
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label class="form-label" for="settings-location">City, State</label>
+                    <input class="input" id="settings-location" type="text">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label" for="settings-phone">Phone Number</label>
+                    <input class="input" id="settings-phone" type="tel">
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="settings-gstin">GSTIN</label>
+                  <input class="input" id="settings-gstin" type="text"
+                    style="font-family:var(--font-mono);letter-spacing:0.06em">
+                  <span class="form-hint">15-digit Goods and Services Tax Identification Number</span>
+                </div>
+              </div>
+              <div style="margin-top:var(--sp-7);display:flex;gap:var(--sp-3)">
+                <button class="btn btn-primary" onclick="showToast('Business information saved','success')">Save Changes</button>
+                <button class="btn btn-secondary">Discard</button>
+              </div>
+            </div>
+
+            <!-- Data Export -->
+            <div class="card card-lg">
+              <div class="card-header">
+                <div>
+                  <div class="card-title">Data &amp; Export</div>
+                  <div class="card-subtitle">Export business records for offline accounting and audits</div>
+                </div>
+                <div style="width:36px;height:36px;background:var(--success-surface);border:1px solid var(--success-muted);border-radius:var(--r-lg);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                  <i data-lucide="download" style="width:15px;height:15px;color:var(--success)"></i>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-3)">
+                <button class="settings-export-btn" onclick="showToast('Exporting sales data…','')">
+                  <i data-lucide="trending-up"></i>
+                  <div>
+                    <div class="settings-export-label">Sales Ledger</div>
+                    <div class="settings-export-sub">All transactions as CSV</div>
+                  </div>
+                </button>
+                <button class="settings-export-btn" onclick="showToast('Exporting inventory…','')">
+                  <i data-lucide="package"></i>
+                  <div>
+                    <div class="settings-export-label">Inventory Report</div>
+                    <div class="settings-export-sub">Current stock &amp; values</div>
+                  </div>
+                </button>
+                <button class="settings-export-btn" onclick="showToast('Exporting purchases…','')">
+                  <i data-lucide="shopping-cart"></i>
+                  <div>
+                    <div class="settings-export-label">Purchase Orders</div>
+                    <div class="settings-export-sub">Supplier PO history</div>
+                  </div>
+                </button>
+                <button class="settings-export-btn" onclick="showToast('Generating P&L report…','')">
+                  <i data-lucide="file-text"></i>
+                  <div>
+                    <div class="settings-export-label">P&amp;L Statement</div>
+                    <div class="settings-export-sub">Profit &amp; loss PDF</div>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            <!-- System Info -->
+            <div style="display:flex;align-items:center;gap:var(--sp-4);padding:var(--sp-5) var(--sp-6);background:var(--surface);border:1px solid var(--border-md);border-radius:var(--r-lg)">
+              <div style="width:38px;height:38px;background:var(--gold-surface);border:1px solid var(--gold-muted);border-radius:var(--r-lg);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                <i data-lucide="shield-check" style="width:16px;height:16px;color:var(--gold-deep)"></i>
+              </div>
+              <div style="flex:1">
+                <div style="font-size:var(--tx-sm);font-weight:var(--fw-bold);color:var(--text-1)">RajaRajeshwari Traders — v3.0 Classic</div>
+                <div style="font-size:var(--tx-xs);color:var(--text-3);margin-top:2px">Hosur, Tamil Nadu · GSTIN: 33AAACR1234M1ZT · Data stored in-session</div>
+              </div>
+              <div class="system-status">
+                <div class="system-status-dot"></div>
+                <span class="system-status-label">Operational</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- RIGHT COLUMN -->
+          <div style="display:flex;flex-direction:column;gap:var(--section-gap)">
+
+            <!-- Products Catalogue -->
+            <div class="card card-lg" style="flex:1">
+              <div class="card-header">
+                <div>
+                  <div class="card-title">Products Catalogue</div>
+                  <div class="card-subtitle">All tracked products, units, costs, and reorder thresholds</div>
+                </div>
+                <button class="btn btn-secondary btn-sm">
+                  <i data-lucide="plus"></i> Add Product
+                </button>
+              </div>
+              <div class="table-overflow">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Product</th>
+                      <th>Category</th>
+                      <th>Unit</th>
+                      <th class="num">Avg Cost</th>
+                      <th class="num">Reorder Level</th>
+                      <th class="num">Current Stock</th>
+                    </tr>
+                  </thead>
+                  <tbody id="settings-products-tbody"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- How to Enter Data — Usage Guide -->
+            <div class="card card-lg">
+              <div class="card-header">
+                <div>
+                  <div class="card-title">How to Enter Data</div>
+                  <div class="card-subtitle">Quick guide to recording daily business transactions</div>
+                </div>
+                <div style="width:36px;height:36px;background:var(--warning-surface);border:1px solid var(--warning-muted);border-radius:var(--r-lg);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                  <i data-lucide="book-open" style="width:15px;height:15px;color:var(--warning)"></i>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:0">
+                <div class="howto-step">
+                  <div class="howto-num">1</div>
+                  <div>
+                    <div class="howto-title">Record a Sale</div>
+                    <div class="howto-desc">Go to <strong>Dashboard</strong> or <strong>Sales</strong> → click <strong>+ Record Sale</strong> → select product, enter quantity, rate, buyer name and payment mode → click <strong>Save Sale</strong>. The transaction appears in the Sales table instantly.</div>
+                  </div>
+                </div>
+                <div class="howto-step">
+                  <div class="howto-num">2</div>
+                  <div>
+                    <div class="howto-title">Record a Purchase</div>
+                    <div class="howto-desc">Go to <strong>Purchases</strong> → click <strong>+ New Purchase</strong> → select supplier, product, enter quantity, rate, and how much was paid now → click <strong>Save Purchase</strong>. Partial payments are tracked as credit dues.</div>
+                  </div>
+                </div>
+                <div class="howto-step">
+                  <div class="howto-num">3</div>
+                  <div>
+                    <div class="howto-title">Record an Expense</div>
+                    <div class="howto-desc">Go to <strong>Expenses</strong> → click <strong>+ New Expense</strong> → choose category (Labour, Transport, Rent, etc.), add description, amount and payment mode → click <strong>Save Expense</strong>. This deducts from net profit in Reports.</div>
+                  </div>
+                </div>
+                <div class="howto-step">
+                  <div class="howto-num">4</div>
+                  <div>
+                    <div class="howto-title">View Reports &amp; Analytics</div>
+                    <div class="howto-desc">Use the <strong>period selector</strong> (Today / 7 Days / 30 Days) in the header to filter all data. Go to <strong>Reports</strong> for the full Profit &amp; Loss statement, revenue trends, and product-level margin analysis.</div>
+                  </div>
+                </div>
+                <div class="howto-step" style="border-bottom:none">
+                  <div class="howto-num" style="background:var(--gold-surface);border-color:var(--gold-muted);color:var(--gold-deep)">5</div>
+                  <div>
+                    <div class="howto-title">Monitor Inventory</div>
+                    <div class="howto-desc">Go to <strong>Inventory</strong> to see current stock levels. Items below reorder level show an <span style="color:var(--warning);font-weight:600">amber warning</span>. Out-of-stock items show a <span style="color:var(--danger);font-weight:600">red alert</span> on the dashboard banner.</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+    
+      <!-- ─────────────────────────────────
+           PAGE: WASTAGE & SPOILAGE (LOSS MANAGEMENT)
+           ───────────────────────────────── -->
+      <section class="page" id="page-wastage">
+        <div class="page-header">
+          <div class="page-heading-group">
+            <h1 class="page-heading">Wastage & Spoilage Management</h1>
+            <p class="page-heading-sub">Track agricultural transit damage, moisture weight shrinkage, and spoilage losses</p>
+          </div>
+          <div class="page-actions">
+            <button class="btn btn-primary btn-lg" onclick="openModal('new-wastage')" id="btn-new-wastage">
+              <i data-lucide="plus"></i> Record Wastage
+            </button>
+          </div>
+        </div>
+
+        <div class="stat-row" id="wastage-stats"></div>
+
+        <div class="table-wrap">
+          <div class="table-toolbar">
+            <span class="table-toolbar-title">Spoilage & Writedown Ledger</span>
+            <div class="search-wrap">
+              <i data-lucide="search"></i>
+              <input type="search" class="search-input" placeholder="Search product, reason, lot…"
+                oninput="handleSearch('wastage', this.value)" id="wastage-search" aria-label="Search wastage">
+            </div>
+          </div>
+          <!-- Wastage filter bar -->
+          <div class="table-filter-bar" id="wastage-filter-bar">
+            <span class="tfilter-label">Period</span>
+            <button class="tfilter-btn" data-mode="today" onclick="setTableFilter('wastage','today')">Today</button>
+            <button class="tfilter-btn active" data-mode="7d" onclick="setTableFilter('wastage','7d')">7 Days</button>
+            <button class="tfilter-btn" data-mode="30d" onclick="setTableFilter('wastage','30d')">30 Days</button>
+            <div class="tfilter-sep"></div>
+            <button class="tfilter-btn" data-mode="range" onclick="setTableFilter('wastage','range')">&#128197; Date Range</button>
+            <div class="tfilter-date-group" id="wastage-filter-range">
+              <input type="date" class="tfilter-date-input" id="wastage-from" onchange="applyCustomFilter('wastage')">
+              <span class="tfilter-date-sep">&rarr;</span>
+              <input type="date" class="tfilter-date-input" id="wastage-to" onchange="applyCustomFilter('wastage')">
+              <button class="tfilter-apply" onclick="applyCustomFilter('wastage')">Apply</button>
+            </div>
+            <button class="tfilter-btn" data-mode="single" onclick="setTableFilter('wastage','single')">&#128197; Single Date</button>
+            <div class="tfilter-date-group" id="wastage-filter-single">
+              <input type="date" class="tfilter-date-input" id="wastage-date" onchange="applyCustomFilter('wastage')">
+              <button class="tfilter-apply" onclick="applyCustomFilter('wastage')">Apply</button>
+            </div>
+          </div>
+          <div class="table-overflow">
+            <table>
+              <thead>
+                <tr>
+                  <th>WST ID</th>
+                  <th>Date</th>
+                  <th>Product</th>
+                  <th>Sourced Lot / Supplier</th>
+                  <th class="num">Damaged Qty</th>
+                  <th class="num">Unit Acquisition Cost</th>
+                  <th class="num">Total Loss Value</th>
+                  <th>Loss Reason</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+              <tbody id="wastage-table-body"></tbody>
+            </table>
+          </div>
+          <div class="table-footer">
+            <span class="table-count" id="wastage-count"></span>
+            <div class="pagination" id="wastage-pagination"></div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     SIDEBAR OVERLAY
+     ═══════════════════════════════════════ -->
+<div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+<!-- ═══════════════════════════════════════
+     MODAL OVERLAY
+     ═══════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-overlay" aria-modal="true">
+
+  <!-- NEW SALE MODAL -->
+  <div class="modal" id="modal-new-sale" style="display:none">
+    <div class="modal-header">
+      <div class="modal-title-group">
+        <div class="modal-title">Record New Sale</div>
+        <div class="modal-subtitle">Add a sales transaction to the ledger</div>
+      </div>
+      <button class="modal-close" onclick="closeModal()" aria-label="Close modal">
+        <i data-lucide="x"></i>
+      </button>
+    </div>
+
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label" for="sale-date">Date <span class="required">*</span></label>
+          <input class="input date-default" type="date" id="sale-date" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="sale-product">Product <span class="required">*</span></label>
+          <select class="input" id="sale-product" required onchange="updateSaleCalc()">
+            <option value="">Select product…</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label" for="sale-qty">Quantity <span class="required">*</span></label>
+          <div class="input-wrap">
+            <input class="input has-suffix" type="number" id="sale-qty" placeholder="0.00"
+              step="0.5" min="0.5" required oninput="updateSaleCalc()">
+            <span class="input-suffix" id="sale-unit-label" style="font-size:var(--tx-xs);font-weight:var(--fw-bold);color:var(--text-3);letter-spacing:0.05em">KG</span>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="sale-rate">Selling Rate <span class="required">*</span></label>
+          <div class="input-wrap">
+            <span class="input-prefix">₹</span>
+            <input class="input has-prefix" type="number" id="sale-rate" placeholder="0.00"
+              step="0.50" min="0" required oninput="updateSaleCalc()">
+          </div>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label" for="sale-buyer">Buyer</label>
+          <input class="input" type="text" id="sale-buyer" placeholder="Walk-in / Customer name">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="sale-payment">Payment Mode <span class="required">*</span></label>
+          <select class="input" id="sale-payment" required>
+            <option value="">Select mode…</option>
+            <option value="UPI">UPI</option>
+            <option value="Cash">Cash</option>
+            <option value="Bank">Bank Transfer</option>
+            
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="sale-notes">Notes</label>
+        <input class="input" type="text" id="sale-notes" placeholder="Optional note…">
+      </div>
+
+      <!-- Transaction Summary -->
+      <div class="modal-summary">
+        <div class="modal-summary-header">Transaction Summary</div>
+        <div class="modal-summary-row">
+          <span class="modal-summary-label">Subtotal (Qty × Rate)</span>
+          <span class="modal-summary-value" id="sale-subtotal">₹0.00</span>
+        </div>
+        <div class="modal-summary-row">
+          <span class="modal-summary-label" style="color:var(--text-3)">Estimated Cost at Avg Price</span>
+          <span class="modal-summary-value muted" id="sale-est-cost">₹0.00</span>
+        </div>
+        <div class="modal-summary-row highlighted">
+          <span class="modal-summary-label strong">Estimated Gross Profit</span>
+          <span class="modal-summary-value positive" id="sale-est-profit">₹0.00</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary btn-lg" onclick="saveSale()">
+        <i data-lucide="check"></i> Save Sale
+      </button>
+    </div>
+  </div>
+
+  <!-- NEW PURCHASE MODAL -->
+  <div class="modal" id="modal-new-purchase" style="display:none">
+    <div class="modal-header">
+      <div class="modal-title-group">
+        <div class="modal-title">Record Purchase</div>
+        <div class="modal-subtitle">Log a supplier purchase order</div>
+      </div>
+      <button class="modal-close" onclick="closeModal()" aria-label="Close modal">
+        <i data-lucide="x"></i>
+      </button>
+    </div>
+
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label" for="purchase-date">Date <span class="required">*</span></label>
+          <input class="input date-default" type="date" id="purchase-date" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="purchase-supplier">Seller / Supplier <span class="required">*</span></label>
+          <select class="input" id="purchase-supplier" required>
+            <option value="">Select seller…</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label" for="purchase-product">Product <span class="required">*</span></label>
+          <select class="input" id="purchase-product" required onchange="handlePurchaseProductChange()">
+            <option value="">Select product…</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="purchase-qty">Total Quantity <span class="required">*</span></label>
+          <div class="input-wrap">
+            <input class="input has-suffix" type="number" id="purchase-qty" placeholder="0.00" step="any" min="0.5"
+              required oninput="updatePurchaseCalc()">
+            <span class="input-suffix" id="purchase-unit-label">KG</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label" for="purchase-total-cost">Total Purchase Cost <span class="required">*</span></label>
+          <div class="input-wrap">
+            <span class="input-prefix">₹</span>
+            <input class="input has-prefix" type="number" id="purchase-total-cost" placeholder="0.00"
+              step="0.50" min="1" required oninput="updatePurchaseCalc()">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="purchase-payment">Payment Mode <span class="required">*</span></label>
+          <select class="input" id="purchase-payment" required>
+            <option value="Bank">Bank Transfer</option>
+            <option value="UPI">UPI</option>
+            <option value="Cash">Cash</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label" for="purchase-calculated-rate">Calculated Unit Cost</label>
+          <div class="input-wrap">
+            <span class="input-prefix">₹</span>
+            <input class="input has-prefix" type="text" id="purchase-calculated-rate" readonly placeholder="0.00" style="background:var(--surface-2);color:var(--text-1);font-weight:700">
+            <span class="input-suffix" id="purchase-calc-unit-label">/ KG</span>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="purchase-target-rate">Target Selling Rate <span class="required">*</span></label>
+          <div class="input-wrap">
+            <span class="input-prefix">₹</span>
+            <input class="input has-prefix" type="number" id="purchase-target-rate" placeholder="0.00"
+              step="0.50" min="0.1" required oninput="updatePurchaseCalc()">
+            <span class="input-suffix" id="purchase-target-unit-label">/ KG</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-summary">
+        <div class="modal-summary-header">Lot Intake Summary</div>
+        <div class="modal-summary-row">
+          <span class="modal-summary-label">Total Sourced Cost</span>
+          <span class="modal-summary-value primary" id="purchase-total">₹0.00</span>
+        </div>
+        <div class="modal-summary-row">
+          <span class="modal-summary-label">Average Unit Cost</span>
+          <span class="modal-summary-value" id="purchase-avg-cost-display">₹0.00 / KG</span>
+        </div>
+        <div class="modal-summary-row highlighted">
+          <span class="modal-summary-label strong">Planned Margin Spread</span>
+          <span class="modal-summary-value positive" id="purchase-planned-margin">+₹0.00 (+0.0%)</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-secondary btn-lg" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary btn-lg" onclick="savePurchase()">
+        <i data-lucide="check"></i> Save Purchase
+      </button>
+    </div>
+  </div>
+
+  <!-- NEW SUPPLIER MODAL -->
+  <div class="modal" id="modal-new-supplier" style="display:none">
+    <div class="modal-header">
+      <div class="modal-title-group">
+        <div class="modal-title">Add Sourcing Supplier</div>
+        <div class="modal-subtitle">Register a direct farm seller or commission agent</div>
+      </div>
+      <button class="modal-close" onclick="closeModal()" aria-label="Close modal">
+        <i data-lucide="x"></i>
+      </button>
+    </div>
+
+    <form id="form-new-supplier" onsubmit="event.preventDefault(); saveSupplier();">
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="supplier-name">Seller / Farm Name <span class="required">*</span></label>
+            <input class="input" type="text" id="supplier-name" placeholder="e.g. Ramesh Agro Farms" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="supplier-phone">Phone Number <span class="required">*</span></label>
+            <input class="input" type="tel" id="supplier-phone" placeholder="10-digit mobile" required>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="supplier-location">Market / City Location <span class="required">*</span></label>
+            <input class="input" type="text" id="supplier-location" placeholder="e.g. Hosur Mandi / Krishnagiri" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="supplier-category">Sourced Produce Category <span class="required">*</span></label>
+            <select class="input" id="supplier-category" required>
+              <option value="Onion & Garlic">Onion & Garlic</option>
+              <option value="Mixed Vegetables">Mixed Vegetables</option>
+              <option value="Potato & Ginger">Potato & Ginger</option>
+              <option value="Spices">Spices</option>
+              <option value="Tomato">Tomato</option>
+              <option value="General Produce">General Produce</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="modal-summary">
+          <div class="modal-summary-header">Procurement Terms</div>
+          <div class="modal-summary-row">
+            <span class="modal-summary-label">Payment Policy</span>
+            <span class="modal-summary-value" style="font-size:12px;font-weight:700;color:var(--success)">100% Zero-Credit / Immediate Settlement</span>
+          </div>
+          <div class="modal-summary-row highlighted">
+            <span class="modal-summary-label strong">Initial Outstanding Due</span>
+            <span class="modal-summary-value" style="color:var(--success)">₹0.00</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-lg" onclick="closeModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary btn-lg" id="btn-save-supplier">
+          <i data-lucide="check"></i> Add Supplier
+        </button>
+      </div>
+    </form>
+  </div>
+
+
+  <!-- NEW EXPENSE MODAL -->
+  <div class="modal" id="modal-new-expense" style="display:none">
+    <div class="modal-header">
+      <div class="modal-title-group">
+        <div class="modal-title">Record Expense</div>
+        <div class="modal-subtitle">Log an operational expenditure</div>
+      </div>
+      <button class="modal-close" onclick="closeModal()" aria-label="Close modal">
+        <i data-lucide="x"></i>
+      </button>
+    </div>
+
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label" for="expense-date">Date <span class="required">*</span></label>
+          <input class="input date-default" type="date" id="expense-date" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="expense-category">Category <span class="required">*</span></label>
+          <select class="input" id="expense-category" required>
+            <option value="">Select category…</option>
+            <option>Labour</option>
+            <option>Transport</option>
+            <option>Electricity</option>
+            <option>Rent</option>
+            <option>Cold Storage</option>
+            <option>Packing Material</option>
+            <option>Equipment Maintenance</option>
+            <option>Miscellaneous</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="expense-desc">Description <span class="required">*</span></label>
+        <input class="input" type="text" id="expense-desc" placeholder="Brief description of expense" required>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label" for="expense-amount">Amount <span class="required">*</span></label>
+          <div class="input-wrap">
+            <span class="input-prefix">₹</span>
+            <input class="input has-prefix" type="number" id="expense-amount" placeholder="0.00"
+              step="0.50" min="1" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="expense-paidby">Paid By <span class="required">*</span></label>
+          <select class="input" id="expense-paidby" required>
+            <option value="">Select…</option>
+            <option value="Cash">Cash</option>
+            <option value="UPI">UPI</option>
+            <option value="Bank">Bank Transfer</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary btn-lg" onclick="saveExpense()">
+        <i data-lucide="check"></i> Save Expense
+      </button>
+    </div>
+  </div>
+
+  <!-- NEW WASTAGE MODAL -->
+  <div class="modal" id="modal-new-wastage" style="display:none">
+    <div class="modal-header">
+      <div class="modal-title-group">
+        <div class="modal-title">Record Spoilage / Wastage</div>
+        <div class="modal-subtitle">Log damaged inventory, transit shrinkage, and operational loss</div>
+      </div>
+      <button class="modal-close" onclick="closeModal()" aria-label="Close modal">
+        <i data-lucide="x"></i>
+      </button>
+    </div>
+
+    <form id="form-new-wastage" onsubmit="event.preventDefault(); saveWastage();">
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="wastage-date">Date <span class="required">*</span></label>
+            <input class="input date-default" type="date" id="wastage-date" value="2026-09-27" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="wastage-product">Product <span class="required">*</span></label>
+            <select class="input" id="wastage-product" required onchange="handleWastageProductChange()">
+              <option value="">Select product…</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="wastage-lot">Sourced Lot / Batch <span class="required">*</span></label>
+            <select class="input" id="wastage-lot" required onchange="handleWastageLotChange()">
+              <option value="">Select sourced lot…</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="wastage-qty">Wasted Quantity <span class="required">*</span></label>
+            <div class="input-wrap">
+              <input class="input has-suffix" type="number" id="wastage-qty" placeholder="0.00"
+                step="any" min="0.1" required oninput="updateWastageCalc()">
+              <span class="input-suffix" id="wastage-unit-label">KG</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="wastage-reason">Loss Reason <span class="required">*</span></label>
+            <select class="input" id="wastage-reason" required>
+              <option value="Rot / Spoilage">Rot / Produce Spoilage</option>
+              <option value="Transit Damage">Transit / Handling Damage</option>
+              <option value="Moisture Weight Loss">Moisture / Dehydration Shrinkage</option>
+              <option value="Sorting / Quality Rejection">Sorting / Quality Rejection</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="wastage-notes">Notes (Optional)</label>
+            <input class="input" type="text" id="wastage-notes" placeholder="Batch / Vehicle / Crate notes…">
+          </div>
+        </div>
+
+        <div class="modal-summary">
+          <div class="modal-summary-header">Writedown Valuation</div>
+          <div class="modal-summary-row">
+            <span class="modal-summary-label">Lot Acquisition Unit Cost</span>
+            <span class="modal-summary-value" id="wastage-unit-cost-display">₹0.00 / KG</span>
+          </div>
+          <div class="modal-summary-row highlighted">
+            <span class="modal-summary-label strong">Total Realized Financial Loss</span>
+            <span class="modal-summary-value negative" id="wastage-loss-total">₹0.00</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-lg" onclick="closeModal()">Cancel</button>
+        <button type="submit" class="btn btn-danger btn-lg" id="btn-save-wastage">
+          <i data-lucide="trash-2"></i> Log Spoilage Loss
+        </button>
+      </div>
+    </form>
+  </div>
+
+</div>
+
+<!-- TOAST CONTAINER -->
+<div class="toast-container" id="toast-container" aria-live="polite"></div>
+
+<!-- ═══════════════════════════════════════
+     SCRIPTS
+     ═══════════════════════════════════════ -->
+<script src="js/data.js?v=4.0"></script>
+<script src="js/charts.js?v=4.0"></script>
+<script src="js/app.js?v=4.0"></script>
+
+<!-- Post-load init: populate selects & tables -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Populate product selects
+  const productOpts = RT.PRODUCTS.map(p =>
+    `<option value="${p.id}">${p.name} (${p.unit}) — Stock: ${p.currentStock} ${p.unit}</option>`
+  ).join('');
+  document.querySelectorAll('#sale-product, #purchase-product').forEach(s => {
+    s.innerHTML = '<option value="">Select product…</option>' + productOpts;
+  });
+
+  // Supplier select
+  const supplierOpts = RT.SUPPLIERS.filter(s => s.status === 'active')
+    .map(s => `<option value="${s.id}">${s.name} · ${s.location}</option>`).join('');
+  const supSel = document.getElementById('purchase-supplier');
+  if (supSel) supSel.innerHTML = '<option value="">Select supplier…</option>' + supplierOpts;
+
+  // Unit label update
+  document.getElementById('sale-product')?.addEventListener('change', function() {
+    const p = RT.getProductById(parseInt(this.value));
+    const lbl = document.getElementById('sale-unit-label');
+    if (lbl) lbl.textContent = p ? p.unit : 'KG';
+  });
+
+  // Purchase paid display sync
+  document.getElementById('purchase-paid')?.addEventListener('input', function() {
+    const el = document.getElementById('purchase-paid-display');
+    if (el) el.textContent = RT.fmt(parseFloat(this.value) || 0, 2);
+    updatePurchaseCalc();
+  });
+
+  // Settings products table — extended with category + current stock
+  const tbody = document.getElementById('settings-products-tbody');
+  if (tbody) {
+    tbody.innerHTML = RT.PRODUCTS.map(p => {
+      const status = RT.getStockStatus(p);
+      const stockColor = status === 'out' ? 'var(--danger)' : status === 'low' ? 'var(--warning)' : 'var(--success)';
+      return `
+        <tr>
+          <td class="col-primary">${p.name}</td>
+          <td><span class="badge badge-neutral">${p.category}</span></td>
+          <td>${p.unit}</td>
+          <td class="num">${RT.fmt(p.avgCost, 2)}</td>
+          <td class="num" style="color:var(--text-3)">${p.reorderLevel} ${p.unit}</td>
+          <td class="num col-amount" style="color:${stockColor};font-weight:var(--fw-bold)">${RT.fmtNum(p.currentStock)} ${p.unit}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  // Reports product table
+  const rBody = document.getElementById('reports-product-body');
+  if (rBody) {
+    const data = RT.getSalesByProduct('7d');
+    rBody.innerHTML = data.labels.map((label, i) => {
+      const sales = RT.filterSalesByPeriod('7d').filter(s => RT.getProductById(s.productId)?.name === label);
+      const rev   = data.values[i];
+      const cogs  = sales.reduce((sum, s) => sum + RT.saleCost(s), 0);
+      const profit = rev - cogs;
+      const margin = rev ? ((profit / rev) * 100).toFixed(1) : '0.0';
+      const units  = sales.reduce((sum, s) => sum + s.quantity, 0);
+      const prod   = RT.PRODUCTS.find(p => p.name === label);
+      return `
+        <tr>
+          <td class="col-primary">${label}</td>
+          <td class="num">${RT.fmtNum(units)} ${prod?.unit || ''}</td>
+          <td class="num col-amount">${RT.fmt(rev)}</td>
+          <td class="num" style="color:var(--warning)">${RT.fmt(cogs)}</td>
+          <td class="num" style="color:var(--success);font-weight:var(--fw-bold)">${RT.fmt(profit)}</td>
+          <td class="num" style="color:${parseFloat(margin)>=15?'var(--success)':parseFloat(margin)>=8?'var(--warning)':'var(--danger)'}">${margin}%</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  // Supplier KPI cards
+  const supKpi = document.getElementById('supplier-kpis');
+  if (supKpi) {
+    const active = RT.SUPPLIERS.filter(s => s.status === 'active').length;
+    const totalBuy = RT.SUPPLIERS.reduce((s, x) => s + x.totalPurchases, 0);
+    const totalDue = RT.SUPPLIERS.reduce((s, x) => s + x.outstanding, 0);
+    supKpi.innerHTML = `
+      <div class="kpi-card accent-primary">
+        <div class="kpi-icon primary"><i data-lucide="truck"></i></div>
+        <div class="kpi-label">Active Suppliers</div>
+        <div class="kpi-value" style="font-size:var(--tx-4xl)">${active}</div>
+        <div class="kpi-context"><span class="kpi-period">of ${RT.SUPPLIERS.length} total</span></div>
+      </div>
+      <div class="kpi-card accent-success">
+        <div class="kpi-icon success"><i data-lucide="receipt"></i></div>
+        <div class="kpi-label">Total Purchased</div>
+        <div class="kpi-value" style="font-size:var(--tx-3xl)">${RT.fmt(totalBuy)}</div>
+        <div class="kpi-context"><span class="kpi-period">all time cumulative</span></div>
+      </div>
+      <div class="kpi-card ${totalDue > 0 ? 'accent-warning' : 'accent-success'}">
+        <div class="kpi-icon ${totalDue > 0 ? 'warning' : 'success'}"><i data-lucide="alert-circle"></i></div>
+        <div class="kpi-label">Outstanding Dues</div>
+        <div class="kpi-value" style="font-size:var(--tx-3xl);color:${totalDue > 0 ? 'var(--warning)' : 'var(--success)'}">${RT.fmt(totalDue)}</div>
+        <div class="kpi-context"><span class="kpi-period">${totalDue > 0 ? 'pending payment' : 'all settled'}</span></div>
+      </div>
+    `;
+  }
+
+  if (window.lucide) lucide.createIcons();
+});
+</script>
+
+
+
+
+</body>
+</html>

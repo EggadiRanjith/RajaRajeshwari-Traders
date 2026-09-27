@@ -1,0 +1,6 @@
+{
+  "name": "RajaRajeshwari Traders - Retail Inventory & Sales",
+  "description": "Retail Inventory, Sales & Moving Weighted Average Profit Management System for RajaRajeshwari Traders powered by Google Sheets.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
