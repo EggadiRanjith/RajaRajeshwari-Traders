@@ -46,11 +46,11 @@ function setTableFilter(table, mode) {
   if (mode === 'range') {
     const fromEl = document.getElementById(`${table}-from`);
     const toEl   = document.getElementById(`${table}-to`);
-    if (fromEl && !fromEl.value) fromEl.value = '2026-09-21';
-    if (toEl && !toEl.value)     toEl.value   = '2026-09-27';
+    if (fromEl && !fromEl.value) fromEl.value = RT.d(6);
+    if (toEl && !toEl.value)     toEl.value   = RT.todayStr();
   } else if (mode === 'single') {
     const singleInput = document.getElementById(`${table}-date`);
-    if (singleInput && !singleInput.value) singleInput.value = '2026-09-27';
+    if (singleInput && !singleInput.value) singleInput.value = RT.todayStr();
   }
 
   /* Update active button styling */
@@ -197,11 +197,11 @@ function setDashboardPeriod(mode) {
   if (mode === 'custom') {
     const fromEl = document.getElementById('dash-from');
     const toEl   = document.getElementById('dash-to');
-    if (fromEl && !fromEl.value) fromEl.value = '2026-09-21';
-    if (toEl && !toEl.value)     toEl.value   = '2026-09-27';
+    if (fromEl && !fromEl.value) fromEl.value = RT.d(6);
+    if (toEl && !toEl.value)     toEl.value   = RT.todayStr();
   } else if (mode === 'single') {
     const singleInput = document.getElementById('dash-single');
-    if (singleInput && !singleInput.value) singleInput.value = '2026-09-27';
+    if (singleInput && !singleInput.value) singleInput.value = RT.todayStr();
   }
 
   if (mode !== 'custom' && mode !== 'single') {
@@ -347,7 +347,7 @@ function populateMakeSaleProducts() {
 
 function handleMakeSaleProductChange() {
   const sel = document.getElementById('ms-product');
-  const productId = parseInt(sel?.value);
+  const productId = (sel?.value || '').trim();
   const p = RT.getProductById(productId);
 
   const unitLabel = document.getElementById('ms-unit-label');
@@ -378,11 +378,14 @@ function handleMakeSaleProductChange() {
       } else {
         lotSel.innerHTML = lots.map(lot => {
           const sup = RT.getSupplierById(lot.supplierId);
-          const supName = sup ? sup.name : 'Direct Sourcing';
+          const supName = sup ? sup.name : (lot.supplierName || 'Direct Sourcing');
+          const supId = lot.supplierId || (sup ? sup.id : '');
+          const supLabel = supId ? `${supName} (${supId})` : supName;
+          const lotDate = lot.date ? RT.fmtDate(lot.date) : '';
           const tRate = lot.targetRate || (lot.rate * 1.25);
           const avail = lot.remainingQty !== undefined ? lot.remainingQty : lot.quantity;
           return `<option value="${lot.id}">
-            ${supName} — #${lot.id} (Cost: ₹${lot.rate.toFixed(2)}, Target: ₹${tRate.toFixed(2)}, Avail: ${avail} ${p.unit})
+            ${supLabel} · Lot #${lot.id} · ${lotDate} (Avail: ${RT.fmtNum(avail)} ${p.unit} · Target: ₹${Number(tRate).toFixed(2)})
           </option>`;
         }).join('');
       }
@@ -396,7 +399,7 @@ function handleMakeSaleLotChange() {
   const lotSel = document.getElementById('ms-lot');
   const lotId = lotSel?.value;
   const lot = RT.getLotById(lotId);
-  const p = RT.getProductById(parseInt(document.getElementById('ms-product')?.value));
+  const p = RT.getProductById((document.getElementById('ms-product')?.value || '').trim());
 
   const lotBadge = document.getElementById('ms-lot-badge');
   const targetBadge = document.getElementById('ms-target-rate-badge');
@@ -404,8 +407,11 @@ function handleMakeSaleLotChange() {
 
   if (lot) {
     const sup = RT.getSupplierById(lot.supplierId);
+    const supName = sup ? sup.name : (lot.supplierName || 'Supplier');
+    const supId = lot.supplierId || (sup ? sup.id : '');
+    const lotDate = lot.date ? ` · ${RT.fmtDate(lot.date)}` : '';
     const avail = lot.remainingQty !== undefined ? lot.remainingQty : lot.quantity;
-    if (lotBadge) lotBadge.textContent = `Lot Avail: ${avail} ${p ? p.unit : 'KG'}`;
+    if (lotBadge) lotBadge.textContent = `Lot Avail: ${RT.fmtNum(avail)} ${p ? p.unit : 'KG'}`;
     const targetPrice = lot.targetRate || Math.round(lot.rate * 1.25);
     if (targetBadge) targetBadge.textContent = `Target: ₹${targetPrice.toFixed(2)}`;
 
@@ -413,9 +419,9 @@ function handleMakeSaleLotChange() {
       rateInput.value = targetPrice.toFixed(2);
       rateInput.dataset.autoPopulated = 'true';
     }
-    setEl('ms-ticket-lot', `${sup ? sup.name : 'Supplier'} (#${lot.id})`);
+    setEl('ms-ticket-lot', `${supName}${supId ? ` (${supId})` : ''} · #${lot.id}${lotDate}`);
   } else {
-    if (lotBadge) lotBadge.textContent = p ? `Avail: ${p.currentStock} ${p.unit}` : 'Lot: --';
+    if (lotBadge) lotBadge.textContent = p ? `Avail: ${RT.fmtNum(p.currentStock)} ${p.unit}` : 'Lot: --';
     const targetPrice = p ? Math.round(p.avgCost * 1.25) : 0;
     if (targetBadge) targetBadge.textContent = p ? `Target: ₹${targetPrice.toFixed(2)}` : 'Target: --';
     if (rateInput && (!rateInput.value || rateInput.dataset.autoPopulated === 'true') && p) {
@@ -449,7 +455,7 @@ function handleCustomerTypeChange() {
 }
 
 function updateMakeSaleCalc() {
-  const p = RT.getProductById(parseInt(document.getElementById('ms-product')?.value));
+  const p = RT.getProductById((document.getElementById('ms-product')?.value || '').trim());
   const lot = RT.getLotById(document.getElementById('ms-lot')?.value);
   const qty = parseFloat(document.getElementById('ms-qty')?.value) || 0;
   const rateInput = document.getElementById('ms-rate');
@@ -504,7 +510,7 @@ function resetMakeSaleForm() {
   const form = document.getElementById('make-sale-form');
   if (form) form.reset();
   const dateInput = document.getElementById('ms-date');
-  if (dateInput) dateInput.value = '2026-09-27';
+  if (dateInput) dateInput.value = RT.todayStr();
   const buyerInput = document.getElementById('ms-buyer');
   if (buyerInput) buyerInput.value = 'Walk-in';
   const custType = document.getElementById('ms-customer-type');
@@ -520,14 +526,48 @@ function resetMakeSaleForm() {
   if (window.lucide) lucide.createIcons();
 }
 
-let isMakeSaleSubmitting = false;
+/* ── Concurrency Mutex & Double-Submit Protection ── */
+const _activeSubmissionLocks = new Set();
 
-function handleMakeSaleSubmit() {
-  if (isMakeSaleSubmitting) return;
+async function withSubmissionLock(lockKey, buttonSelectorOrEl, asyncCallback) {
+  if (_activeSubmissionLocks.has(lockKey)) {
+    console.warn(`[RT] Concurrency lock active for "${lockKey}". Double-click ignored.`);
+    return false;
+  }
+  _activeSubmissionLocks.add(lockKey);
 
-  const date      = document.getElementById('ms-date')?.value;
-  const productId = parseInt(document.getElementById('ms-product')?.value);
-  const lotId     = document.getElementById('ms-lot')?.value;
+  const btn = typeof buttonSelectorOrEl === 'string'
+    ? document.querySelector(buttonSelectorOrEl)
+    : buttonSelectorOrEl;
+
+  let originalHtml = '';
+  if (btn) {
+    originalHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.style.opacity = '0.75';
+    btn.style.cursor = 'not-allowed';
+    btn.innerHTML = '<span class="btn-spinner"></span> Posting to Sheets…';
+  }
+
+  try {
+    await asyncCallback();
+    return true;
+  } finally {
+    _activeSubmissionLocks.delete(lockKey);
+    if (btn) {
+      btn.disabled = false;
+      btn.style.opacity = '';
+      btn.style.cursor = '';
+      btn.innerHTML = originalHtml;
+      if (window.lucide) lucide.createIcons({ nodes: [btn] });
+    }
+  }
+}
+
+async function handleMakeSaleSubmit() {
+  const date      = document.getElementById('ms-date')?.value || RT.todayStr();
+  const productId = (document.getElementById('ms-product')?.value || '').trim();
+  const lotId     = (document.getElementById('ms-lot')?.value || '').trim();
   const qty       = parseFloat(document.getElementById('ms-qty')?.value);
   const rate      = parseFloat(document.getElementById('ms-rate')?.value);
   const custType  = document.getElementById('ms-customer-type')?.value || 'Walk-in';
@@ -536,13 +576,13 @@ function handleMakeSaleSubmit() {
   const notes     = document.getElementById('ms-notes')?.value?.trim() || '';
 
   if (!validateField('ms-date', !!date, 'Please select transaction date')) return;
-  if (!validateField('ms-product', !isNaN(productId) && productId > 0, 'Please select a product')) return;
+  if (!validateField('ms-product', !!productId, 'Please select a product')) return;
   if (!validateField('ms-qty', !isNaN(qty) && qty > 0, 'Quantity must be a positive number')) return;
   if (!validateField('ms-rate', !isNaN(rate) && rate > 0, 'Unit rate must be greater than zero')) return;
   if (!validateField('ms-payment', !!payment, 'Please select a payment mode')) return;
 
   const p = RT.getProductById(productId);
-  const lot = RT.getLotById(lotId);
+  const lot = lotId ? RT.getLotById(lotId) : null;
 
   if (lot && lot.remainingQty !== undefined && qty > lot.remainingQty) {
     validateField('ms-qty', false, `Insufficient lot stock! Only ${lot.remainingQty} ${p ? p.unit : 'KG'} available in Lot #${lot.id}`);
@@ -553,63 +593,43 @@ function handleMakeSaleSubmit() {
     return;
   }
 
-  isMakeSaleSubmitting = true;
-  const btn = document.getElementById('btn-make-sale-submit');
-  if (btn) btn.disabled = true;
+  await withSubmissionLock('makeSale', '#btn-make-sale-submit', async () => {
+    try {
+      const result = await RT.gasPost('createSale', {
+        date,
+        productId,
+        lotId: lotId || '',
+        quantity: qty,
+        rate,
+        customerType: custType,
+        buyer,
+        payment,
+        notes
+      });
 
-  try {
-    const newId = 'S' + String(RT.SALES.length + 41).padStart(3, '0');
+      const newId = result.invoiceId || result.id || 'S001';
+      showToast(`Sale #${newId} recorded in Google Sheets — ${RT.fmt(result.revenue || qty * rate)} (${custType})`, 'success');
 
-    // Decrement lot stock
-    if (lot && lot.remainingQty !== undefined) {
-      lot.remainingQty = Math.max(0, lot.remainingQty - qty);
+      // Clear form inputs
+      const qtyInput = document.getElementById('ms-qty');
+      if (qtyInput) qtyInput.value = '';
+      const rateInput = document.getElementById('ms-rate');
+      if (rateInput) {
+        rateInput.value = '';
+        rateInput.dataset.autoPopulated = 'true';
+      }
+      const notesInput = document.getElementById('ms-notes');
+      if (notesInput) notesInput.value = '';
+
+      await RT.refresh();
+      populateMakeSaleProducts();
+      handleMakeSaleProductChange();
+      renderMakeSaleLast10(newId);
+      document.getElementById('ms-product')?.focus();
+    } catch (err) {
+      showToast(err.message || 'Failed to record sale in Google Sheets', 'danger');
     }
-    // Decrement product stock
-    if (p) {
-      p.currentStock = Math.max(0, p.currentStock - qty);
-    }
-
-    const saleRecord = {
-      id: newId,
-      date,
-      productId,
-      lotId: lot ? lot.id : null,
-      supplierId: lot ? lot.supplierId : 1,
-      quantity: qty,
-      rate,
-      targetRate: lot ? (lot.targetRate || rate) : rate,
-      customerType: custType,
-      buyer,
-      payment,
-      status: 'paid',
-      notes
-    };
-
-    RT.SALES.unshift(saleRecord);
-
-    showToast(`Sale #${newId} recorded — ${RT.fmt(qty * rate)} (${custType})`, 'success');
-
-    // Clear form inputs
-    const qtyInput = document.getElementById('ms-qty');
-    if (qtyInput) qtyInput.value = '';
-    const rateInput = document.getElementById('ms-rate');
-    if (rateInput) {
-      rateInput.value = '';
-      rateInput.dataset.autoPopulated = 'true';
-    }
-    const notesInput = document.getElementById('ms-notes');
-    if (notesInput) notesInput.value = '';
-
-    populateMakeSaleProducts();
-    handleMakeSaleProductChange();
-    renderMakeSaleLast10(newId);
-    document.getElementById('ms-product')?.focus();
-  } finally {
-    setTimeout(() => {
-      isMakeSaleSubmitting = false;
-      if (btn) btn.disabled = false;
-    }, 250);
-  }
+  });
 }
 
 function renderMakeSaleLast10(highlightId) {
@@ -741,7 +761,7 @@ function renderDashboard() {
   const chartSubEl = document.getElementById('chart-revenue-subtitle');
   if (chartSubEl) {
     const text = {
-      today: `Intraday performance (9 AM – 9 PM) — Today (${RT.fmtDate('2026-09-27')})`,
+      today: `Intraday performance (9 AM – 9 PM) — Today (${RT.fmtDate(RT.todayStr())})`,
       '7d': 'Daily performance — last 7 days',
       '30d': 'Daily performance — last 30 days',
       custom: (STATE.customFrom && STATE.customTo) ? `Daily performance — ${RT.fmtDate(STATE.customFrom)} to ${RT.fmtDate(STATE.customTo)}` : 'Daily performance — Custom range',
@@ -1020,8 +1040,8 @@ function renderSalesStats() {
   const revenue = sales.reduce((s, x) => s + RT.saleAmount(x), 0);
   const count = sales.length;
   const avg = count ? revenue / count : 0;
-  const credit = sales.filter(s => s.status === 'credit' || s.status === 'partial')
-    .reduce((s, x) => s + RT.saleAmount(x), 0);
+  const profit = sales.reduce((s, x) => s + RT.saleProfit(x), 0);
+  const marginPct = revenue > 0 ? ((profit / revenue) * 100).toFixed(1) : '0.0';
 
   const f = TABLE_FILTERS.sales;
   const periodLabel = f.mode === 'today' ? 'today'
@@ -1044,9 +1064,9 @@ function renderSalesStats() {
       <div class="stat-card-sub">Avg ${RT.fmt(avg)} per transaction</div>
     </div>
     <div class="stat-card">
-      <div class="stat-card-label">Credit Outstanding</div>
-      <div class="stat-card-value" style="color:${credit > 0 ? 'var(--warning)' : 'var(--success)'}">${RT.fmt(credit)}</div>
-      <div class="stat-card-sub">${credit > 0 ? 'Pending collection' : 'All collected'}</div>
+      <div class="stat-card-label">Gross Profit Realized</div>
+      <div class="stat-card-value" style="color:var(--success)">${RT.fmt(profit)}</div>
+      <div class="stat-card-sub">${marginPct}% margin · Zero-credit policy</div>
     </div>
   `;
 }
@@ -1082,7 +1102,7 @@ function renderSalesTable() {
         <div class="table-empty-sub">${isFiltered ? 'No transactions match current filters' : 'Record your first sale to get started'}</div>
         ${isFiltered
           ? `<button class="table-empty-action" onclick="resetTableFilters('sales')"><i data-lucide="rotate-ccw"></i> Reset Filters & Show All</button>`
-          : `<button class="btn btn-primary btn-sm" style="margin-top:var(--sp-3)" onclick="openModal('new-sale')"><i data-lucide="plus"></i> New Sale</button>`}
+          : `<button class="btn btn-primary btn-sm" style="margin-top:var(--sp-3)" onclick="navigateTo('make-sale')"><i data-lucide="plus"></i> New Sale</button>`}
       </div>
     </td></tr>`;
     if (window.lucide) lucide.createIcons({ nodes: [container] });
@@ -1134,7 +1154,8 @@ function renderPurchasesStats() {
   const purchases = getTableData('purchases');
   const total = purchases.reduce((s, p) => s + RT.purchaseTotal(p), 0);
   const totalUnits = purchases.reduce((s, p) => s + p.quantity, 0);
-  const avgCost = totalUnits > 0 ? (total / totalUnits) : 0;
+  const uniqueProducts = new Set(purchases.map(p => p.productId)).size;
+  const activeLots = purchases.length;
 
   const f = TABLE_FILTERS.purchases;
   const periodLabel = f.mode === 'today' ? 'today'
@@ -1157,9 +1178,9 @@ function renderPurchasesStats() {
       <div class="stat-card-sub">Active lot intake inventory</div>
     </div>
     <div class="stat-card">
-      <div class="stat-card-label">Avg Sourced Cost / KG</div>
-      <div class="stat-card-value" style="color:var(--success)">${RT.fmt(avgCost, 2)}</div>
-      <div class="stat-card-sub">Weighted procurement rate</div>
+      <div class="stat-card-label">Active Sourced Batches</div>
+      <div class="stat-card-value" style="color:var(--success)">${activeLots} Batches</div>
+      <div class="stat-card-sub">${uniqueProducts} distinct commodities</div>
     </div>
   `;
 }
@@ -1325,9 +1346,49 @@ function renderStock() {
 /* ──────────────────────────────────────────────
    SUPPLIERS
    ────────────────────────────────────────────── */
+function handleSupplierAnalyticsChange(supplierId) {
+  if (typeof Charts !== 'undefined' && Charts.renderSupplierHistory) {
+    Charts.renderSupplierHistory(supplierId);
+  }
+}
+
 function renderSuppliers() {
   const container = document.getElementById('suppliers-table-body');
   if (!container) return;
+
+  // Populate supplier analytics selector
+  const supSelect = document.getElementById('supplier-analytics-select');
+  if (supSelect) {
+    const activeSups = RT.SUPPLIERS.filter(s => s.status === 'active');
+    const prevVal = supSelect.value;
+    supSelect.innerHTML = activeSups.length === 0
+      ? '<option value="">No registered suppliers</option>'
+      : activeSups.map(s => {
+          const cat = s.category || s.supplyCategory || '';
+          const catLabel = cat ? ` (${cat})` : '';
+          return `<option value="${s.id}">${s.name} · ${s.location}${catLabel}</option>`;
+        }).join('');
+
+    if (prevVal && activeSups.some(s => String(s.id) === String(prevVal))) {
+      supSelect.value = prevVal;
+    } else if (activeSups.length > 0) {
+      supSelect.value = activeSups[0].id;
+    }
+  }
+
+  // Capture the selected ID NOW — before anything can rebuild the dropdown
+  const selectedSupplierId = (() => {
+    if (supSelect && supSelect.value) return supSelect.value;
+    const firstActive = (RT.SUPPLIERS || []).find(s => s.status === 'active');
+    return firstActive ? firstActive.id : '';
+  })();
+
+  // Trigger supplier chart with the captured ID (immune to DOM race conditions)
+  setTimeout(() => {
+    if (typeof Charts !== 'undefined' && Charts.renderSupplierHistory && selectedSupplierId) {
+      Charts.renderSupplierHistory(selectedSupplierId);
+    }
+  }, 60);
 
   let data = RT.SUPPLIERS.slice();
   if (STATE.suppliersSearch) {
@@ -1350,21 +1411,31 @@ function renderSuppliers() {
     return;
   }
 
-  container.innerHTML = data.map(s => `
-    <tr>
-      <td class="col-primary">${s.name}</td>
-      <td>${s.phone}</td>
-      <td>${s.location}</td>
-      <td><span class="badge badge-neutral">${s.category}</span></td>
-      <td class="num col-amount">${RT.fmt(s.totalPurchases)}</td>
-      <td class="num" style="color:${s.outstanding > 0 ? 'var(--warning)' : 'var(--text-3)'};font-weight:${s.outstanding > 0 ? 'var(--fw-semibold)' : 'var(--fw-regular)'}">
-        ${s.outstanding > 0 ? RT.fmt(s.outstanding) : '—'}
-      </td>
-      <td>${s.status === 'active'
-        ? '<span class="badge badge-success">Active</span>'
-        : '<span class="badge badge-neutral">Inactive</span>'}</td>
-    </tr>
-  `).join('');
+  container.innerHTML = data.map(s => {
+    /* Strict supplierId matching — no name fallback to prevent cross-contamination */
+    const sPurchases = (RT.PURCHASES || []).filter(p =>
+      p.supplierId && String(p.supplierId) === String(s.id)
+    );
+    const totalVolume = sPurchases.reduce((sum, p) => sum + (p.quantity || 0), 0);
+    const totalSpent = sPurchases.reduce((sum, p) => sum + (p.totalCost || 0), 0) || s.totalPurchases || 0;
+    const batchCount = sPurchases.length;
+
+    return `
+      <tr>
+        <td class="col-primary" style="font-weight:600">${s.name}</td>
+        <td>${s.phone || '—'}</td>
+        <td>${s.location || '—'}</td>
+        <td><span class="badge badge-neutral">${s.category || s.supplyCategory || '—'}</span></td>
+        <td class="num col-amount" style="font-weight:700">${RT.fmt(totalSpent)}</td>
+        <td class="num" style="font-weight:600;color:var(--text-1)">${RT.fmtNum(totalVolume)} KG <span style="font-size:11px;color:var(--text-3);font-weight:400">(${batchCount} lot${batchCount === 1 ? '' : 's'})</span></td>
+        <td>${s.status === 'active'
+          ? '<span class="badge badge-success">Active</span>'
+          : '<span class="badge badge-neutral">Inactive</span>'}</td>
+      </tr>
+    `;
+  }).join('');
+
+  if (window.lucide) lucide.createIcons({ nodes: [container] });
 }
 
 /* ──────────────────────────────────────────────
@@ -1652,10 +1723,27 @@ function openModal(id) {
     }
   }
 
+  if (id === 'new-purchase') {
+    const pDate = document.getElementById('purchase-date');
+    if (pDate) pDate.value = RT.todayStr();
+    const supSel = document.getElementById('purchase-supplier');
+    if (supSel) supSel.value = '';
+    const prodSel = document.getElementById('purchase-product');
+    if (prodSel) prodSel.value = '';
+    const qty = document.getElementById('purchase-qty');
+    if (qty) qty.value = '';
+    const totalCost = document.getElementById('purchase-total-cost');
+    if (totalCost) totalCost.value = '';
+    const targetRate = document.getElementById('purchase-target-rate');
+    if (targetRate) targetRate.value = '';
+    const calcRate = document.getElementById('purchase-calculated-rate');
+    if (calcRate) calcRate.value = '';
+  }
+
   // Reset summary values
   const resets = {
     'new-sale':     [['sale-subtotal','₹0.00'],['sale-est-cost','₹0.00'],['sale-est-profit','₹0.00']],
-    'new-purchase': [['purchase-total','₹0.00'],['purchase-due','₹0.00'],['purchase-paid-display','₹0.00']],
+    'new-purchase': [['purchase-total','₹0.00'],['purchase-due','₹0.00'],['purchase-paid-display','₹0.00'],['purchase-avg-cost-display','₹0.00 / KG'],['purchase-planned-margin','+₹0.00 (+0.0%)']],
     'new-wastage':  [['wastage-unit-cost-display','₹0.00 / KG'],['wastage-loss-total','₹0.00']],
     'new-supplier': [],
   };
@@ -1672,7 +1760,7 @@ function closeModal() {
 
 /* ── Sale calculation ── */
 function updateSaleCalc() {
-  const productId = parseInt(document.getElementById('sale-product')?.value);
+  const productId = (document.getElementById('sale-product')?.value || '').trim();
   const qty  = parseFloat(document.getElementById('sale-qty')?.value) || 0;
   const rate = parseFloat(document.getElementById('sale-rate')?.value) || 0;
   const p    = RT.getProductById(productId);
@@ -1692,7 +1780,7 @@ function updateSaleCalc() {
 /* ── Purchase calculation (Lot Sourcing & Target Pricing) ── */
 function handlePurchaseProductChange() {
   const sel = document.getElementById('purchase-product');
-  const productId = parseInt(sel?.value);
+  const productId = sel?.value;
   const p = RT.getProductById(productId);
   const unit = p ? p.unit : 'KG';
   setEl('purchase-unit-label', unit);
@@ -1713,12 +1801,16 @@ function updatePurchaseCalc() {
   const rateField = document.getElementById('purchase-calculated-rate');
   if (rateField) rateField.value = avgCost > 0 ? avgCost.toFixed(2) : '0.00';
 
+  const prodSel = document.getElementById('purchase-product');
+  const p = prodSel?.value ? RT.getProductById(prodSel.value) : null;
+  const unit = p ? p.unit : 'KG';
+
   setEl('purchase-total', RT.fmt(totalCost, 2));
-  setEl('purchase-avg-cost-display', avgCost > 0 ? `${RT.fmt(avgCost, 2)} / KG` : '₹0.00 / KG');
+  setEl('purchase-avg-cost-display', avgCost > 0 ? `${RT.fmt(avgCost, 2)} / ${unit}` : `₹0.00 / ${unit}`);
 
   const spreadEl = document.getElementById('purchase-planned-margin');
   if (spreadEl) {
-    spreadEl.textContent = `${spread >= 0 ? '+' : ''}${RT.fmt(spread, 2)} / KG (${spread >= 0 ? '+' : ''}${spreadPct}%)`;
+    spreadEl.textContent = `${spread >= 0 ? '+' : ''}${RT.fmt(spread, 2)} / ${unit} (${spread >= 0 ? '+' : ''}${spreadPct}%)`;
     spreadEl.style.color = spread >= 0 ? 'var(--success)' : 'var(--danger)';
   }
 }
@@ -1740,85 +1832,94 @@ function validateField(elementId, isValid, errorMessage) {
 }
 
 /* ── Save Sale ── */
-function saveSale() {
-  const date      = document.getElementById('sale-date')?.value;
-  const productId = parseInt(document.getElementById('sale-product')?.value);
+async function saveSale() {
+  const date      = document.getElementById('sale-date')?.value || RT.todayStr();
+  const productId = (document.getElementById('sale-product')?.value || '').trim();
   const qty       = parseFloat(document.getElementById('sale-qty')?.value);
   const rate      = parseFloat(document.getElementById('sale-rate')?.value);
   const buyer     = document.getElementById('sale-buyer')?.value?.trim() || 'Walk-in';
-  const payment   = document.getElementById('sale-payment')?.value;
+  const payment   = document.getElementById('sale-payment')?.value || 'Cash';
 
   if (!validateField('sale-date', !!date, 'Please select a transaction date')) return;
-  if (!validateField('sale-product', !isNaN(productId) && productId > 0, 'Please select a product')) return;
+  if (!validateField('sale-product', !!productId, 'Please select a product')) return;
   if (!validateField('sale-qty', !isNaN(qty) && qty > 0, 'Quantity must be a positive number')) return;
   if (!validateField('sale-rate', !isNaN(rate) && rate > 0, 'Unit rate must be greater than zero')) return;
   if (!validateField('sale-payment', !!payment, 'Please select a payment mode')) return;
 
-  const status = payment === 'Credit' ? 'credit' : 'paid';
-  const newId  = 'S' + String(RT.SALES.length + 41).padStart(3, '0');
-  RT.SALES.unshift({ id: newId, date, productId, quantity: qty, rate, payment, buyer, status });
+  const lots = RT.getActiveLots(productId);
+  const lotId = lots.length > 0 ? lots[0].id : '';
 
-  closeModal();
-  showToast(`Sale ${newId} recorded successfully — ${RT.fmt(qty * rate)}`, 'success');
-  renderPage(STATE.page);
+  await withSubmissionLock('modalSale', '#btn-save-sale', async () => {
+    try {
+      const result = await RT.gasPost('createSale', {
+        date,
+        productId,
+        lotId,
+        quantity: qty,
+        rate,
+        customerType: 'Walk-in',
+        buyer,
+        payment
+      });
+
+      closeModal();
+      const newId = result.invoiceId || result.id || 'S001';
+      showToast(`Sale #${newId} recorded in Google Sheets — ${RT.fmt(result.revenue || qty * rate)}`, 'success');
+      await RT.refresh();
+      renderPage(STATE.page);
+    } catch (err) {
+      showToast(err.message || 'Failed to record sale in Google Sheets', 'danger');
+    }
+  });
 }
 
 /* ── Save Purchase (Lot Sourcing & Valuation) ── */
-function savePurchase() {
-  const date       = document.getElementById('purchase-date')?.value;
-  const supplierId = parseInt(document.getElementById('purchase-supplier')?.value);
-  const productId  = parseInt(document.getElementById('purchase-product')?.value);
+async function savePurchase() {
+  const date       = document.getElementById('purchase-date')?.value || RT.todayStr();
+  const supplierId = (document.getElementById('purchase-supplier')?.value || '').trim();
+  const productId  = (document.getElementById('purchase-product')?.value || '').trim();
   const qty        = parseFloat(document.getElementById('purchase-qty')?.value);
   const totalCost  = parseFloat(document.getElementById('purchase-total-cost')?.value);
   const targetRate = parseFloat(document.getElementById('purchase-target-rate')?.value);
   const payment    = document.getElementById('purchase-payment')?.value || 'Bank';
 
   if (!validateField('purchase-date', !!date, 'Please select a purchase date')) return;
-  if (!validateField('purchase-supplier', !isNaN(supplierId) && supplierId > 0, 'Please select a supplier')) return;
-  if (!validateField('purchase-product', !isNaN(productId) && productId > 0, 'Please select a product')) return;
+  if (!validateField('purchase-supplier', !!supplierId, 'Please select a supplier')) return;
+  if (!validateField('purchase-product', !!productId, 'Please select a product')) return;
   if (!validateField('purchase-qty', !isNaN(qty) && qty > 0, 'Quantity must be a positive number')) return;
   if (!validateField('purchase-total-cost', !isNaN(totalCost) && totalCost > 0, 'Total purchase price must be greater than zero')) return;
   if (!validateField('purchase-target-rate', !isNaN(targetRate) && targetRate > 0, 'Target selling rate must be greater than zero')) return;
 
-  const avgCost = totalCost / qty;
-  const newId  = 'P' + String(RT.PURCHASES.length + 21).padStart(3, '0');
+  await withSubmissionLock('savePurchase', '#btn-save-purchase', async () => {
+    try {
+      const result = await RT.gasPost('createPurchase', {
+        date,
+        supplierId,
+        productId,
+        totalQty: qty,
+        totalCost,
+        targetRate,
+        payment
+      });
 
-  const newLot = {
-    id: newId,
-    date,
-    supplierId,
-    productId,
-    quantity: qty,
-    totalCost,
-    rate: avgCost,
-    targetRate,
-    remainingQty: qty,
-    payment,
-    amountPaid: totalCost,
-    status: 'paid'
-  };
-
-  RT.PURCHASES.unshift(newLot);
-
-  const p = RT.getProductById(productId);
-  if (p) {
-    const prevVal = p.currentStock * p.avgCost;
-    p.currentStock += qty;
-    p.avgCost = (prevVal + totalCost) / p.currentStock;
-  }
-
-  closeModal();
-  showToast(`Purchase lot ${newId} sourced — ${RT.fmt(totalCost)} (Avg: ${RT.fmt(avgCost, 2)})`, 'success');
-  renderPage(STATE.page);
+      closeModal();
+      const newId = result.lotId || result.id || 'P001';
+      showToast(`Purchase lot ${newId} posted to Google Sheets — ${RT.fmt(totalCost)} (Avg: ${RT.fmt(result.unitCost || totalCost / qty, 2)})`, 'success');
+      await RT.refresh();
+      renderPage(STATE.page);
+    } catch (err) {
+      showToast(err.message || 'Failed to record purchase in Google Sheets', 'danger');
+    }
+  });
 }
 
 /* ── Save Expense ── */
-function saveExpense() {
-  const date     = document.getElementById('expense-date')?.value;
+async function saveExpense() {
+  const date     = document.getElementById('expense-date')?.value || RT.todayStr();
   const category = document.getElementById('expense-category')?.value;
-  const desc     = document.getElementById('expense-desc')?.value?.trim();
+  const desc     = document.getElementById('expense-desc')?.value?.trim() || '';
   const amount   = parseFloat(document.getElementById('expense-amount')?.value);
-  const paidBy   = document.getElementById('expense-paidby')?.value;
+  const paidBy   = document.getElementById('expense-paidby')?.value || 'Cash';
 
   if (!validateField('expense-date', !!date, 'Please select an expense date')) return;
   if (!validateField('expense-category', !!category, 'Please select an expense category')) return;
@@ -1826,12 +1927,28 @@ function saveExpense() {
   if (!validateField('expense-amount', !isNaN(amount) && amount > 0, 'Expense amount must be greater than zero')) return;
   if (!validateField('expense-paidby', !!paidBy, 'Please select payment method')) return;
 
-  const newId = 'E' + String(RT.EXPENSES.length + 21).padStart(3, '0');
-  RT.EXPENSES.unshift({ id: newId, date, category, description: desc, amount, paidBy });
+  await withSubmissionLock('saveExpense', '#btn-save-expense', async () => {
+    try {
+      const payMode = paidBy || 'Cash';
+      const result = await RT.gasPost('createExpense', {
+        date,
+        category,
+        description: desc,
+        amount,
+        paidBy: payMode,
+        paymentMode: payMode,
+        payment: payMode,
+        payment_mode: payMode
+      });
 
-  closeModal();
-  showToast(`Expense recorded — ${RT.fmt(amount)}`, 'success');
-  renderPage(STATE.page);
+      closeModal();
+      showToast(`Expense ${result.expenseId || ''} recorded in Google Sheets — ${RT.fmt(amount)}`, 'success');
+      await RT.refresh();
+      renderPage(STATE.page);
+    } catch (err) {
+      showToast(err.message || 'Failed to record expense in Google Sheets', 'danger');
+    }
+  });
 }
 
 /* ──────────────────────────────────────────────
@@ -1959,7 +2076,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Set today's date in all date inputs
   document.querySelectorAll('.date-default').forEach(input => {
-    input.value = '2026-09-27';
+    input.value = RT.todayStr();
   });
 
   navigateTo('dashboard');
@@ -2077,7 +2194,7 @@ function populateWastageProducts() {
 }
 
 function handleWastageProductChange() {
-  const pId = parseInt(document.getElementById('wastage-product')?.value);
+  const pId = (document.getElementById('wastage-product')?.value || '').trim();
   const lotSel = document.getElementById('wastage-lot');
   if (!lotSel) return;
 
@@ -2096,8 +2213,15 @@ function handleWastageProductChange() {
   } else {
     lotSel.innerHTML = lots.map(lot => {
       const sup = RT.getSupplierById(lot.supplierId);
-      const supName = sup ? sup.name.split(' ')[0] : 'Vendor';
-      return `<option value="${lot.id}" data-cost="${lot.rate}">Lot #${lot.id} — ${supName} (${lot.remainingQty} ${unit} @ ₹${lot.rate.toFixed(2)})</option>`;
+      const supName = sup ? sup.name : (lot.supplierName || 'Vendor');
+      const supId = lot.supplierId || (sup ? sup.id : '');
+      const supDisplay = supId ? `${supName} (${supId})` : supName;
+      const dateStr = lot.date ? RT.fmtDate(lot.date) : '';
+      const avail = lot.remainingQty !== undefined ? lot.remainingQty : (lot.quantity || 0);
+      const cost = lot.rate || (lot.quantity > 0 ? lot.totalCost / lot.quantity : 0);
+      return `<option value="${lot.id}" data-cost="${cost}">
+        ${supDisplay} · Lot #${lot.id} · ${dateStr} (${RT.fmtNum(avail)} ${unit} @ ${RT.fmt(cost, 2)})
+      </option>`;
     }).join('');
   }
 
@@ -2119,7 +2243,7 @@ function updateWastageCalc() {
   let unitCost = opt?.dataset?.cost ? parseFloat(opt.dataset.cost) : 0;
 
   if (!unitCost) {
-    const pId = parseInt(document.getElementById('wastage-product')?.value);
+    const pId = (document.getElementById('wastage-product')?.value || '').trim();
     const p = RT.getProductById(pId);
     unitCost = p ? p.avgCost : 0;
   }
@@ -2129,16 +2253,17 @@ function updateWastageCalc() {
   setEl('wastage-loss-total', RT.fmt(totalLoss, 2));
 }
 
-function saveWastage() {
-  const date      = document.getElementById('wastage-date')?.value;
-  const productId = parseInt(document.getElementById('wastage-product')?.value);
-  const lotId     = document.getElementById('wastage-lot')?.value || null;
+/* ── Save Wastage ── */
+async function saveWastage() {
+  const date      = document.getElementById('wastage-date')?.value || RT.todayStr();
+  const productId = (document.getElementById('wastage-product')?.value || '').trim();
+  const lotId     = (document.getElementById('wastage-lot')?.value || '').trim();
   const qty       = parseFloat(document.getElementById('wastage-qty')?.value);
   const reason    = document.getElementById('wastage-reason')?.value || 'Rot / Spoilage';
   const notes     = document.getElementById('wastage-notes')?.value?.trim() || '';
 
   if (!validateField('wastage-date', !!date, 'Please select a date')) return;
-  if (!validateField('wastage-product', !isNaN(productId) && productId > 0, 'Please select a product')) return;
+  if (!validateField('wastage-product', !!productId, 'Please select a product')) return;
   if (!validateField('wastage-qty', !isNaN(qty) && qty > 0, 'Quantity must be greater than zero')) return;
 
   const p = RT.getProductById(productId);
@@ -2153,65 +2278,69 @@ function saveWastage() {
     return;
   }
 
-  const rec = RT.recordWastage({
-    productId,
-    lotId,
-    quantity: qty,
-    reason,
-    notes,
-    date
-  });
+  await withSubmissionLock('saveWastage', '#btn-save-wastage', async () => {
+    try {
+      const rec = await RT.gasPost('createWastage', {
+        productId,
+        lotId,
+        quantity: qty,
+        reason,
+        notes,
+        date
+      });
 
-  closeModal();
-  showToast(`Wastage record #${rec.id} saved — ${RT.fmt(rec.lossAmount)} loss registered`, 'warning');
-  renderPage(STATE.page);
+      closeModal();
+      const newId = rec.wastageId || rec.id || '';
+      showToast(`Wastage record #${newId} saved in Google Sheets`, 'warning');
+      await RT.refresh();
+      renderPage(STATE.page);
+    } catch (err) {
+      showToast(err.message || 'Failed to save wastage in Google Sheets', 'danger');
+    }
+  });
 }
 
 /* ──────────────────────────────────────────────
    SUPPLIER MANAGEMENT (Zero-Credit Direct Sourcing)
    ────────────────────────────────────────────── */
-function saveSupplier() {
+async function saveSupplier() {
   const name     = document.getElementById('supplier-name')?.value?.trim();
   const phone    = document.getElementById('supplier-phone')?.value?.trim();
   const location = document.getElementById('supplier-location')?.value?.trim();
-  const category = document.getElementById('supplier-category')?.value || 'General Produce';
+  const category = document.getElementById('supplier-category')?.value || (RT.PRODUCTS && RT.PRODUCTS[0] ? RT.PRODUCTS[0].name : 'White Onion');
   const notes    = document.getElementById('supplier-notes')?.value?.trim() || '';
 
   if (!validateField('supplier-name', !!name, 'Please enter supplier or farm name')) return;
   if (!validateField('supplier-phone', !!phone && phone.length >= 8, 'Please enter a valid phone number')) return;
   if (!validateField('supplier-location', !!location, 'Please enter supplier location')) return;
 
-  const exists = RT.SUPPLIERS.some(s => s.name.toLowerCase() === name.toLowerCase());
+  const exists = RT.SUPPLIERS.some(s =>
+    s.name.toLowerCase() === name.toLowerCase() &&
+    (s.category || s.supplyCategory || '').toLowerCase() === category.toLowerCase()
+  );
   if (exists) {
-    showToast(`Supplier "${name}" is already registered!`, 'warning');
+    showToast(`Supplier "${name}" for "${category}" is already registered!`, 'warning');
     return;
   }
 
-  const newId = RT.SUPPLIERS.length + 1;
-  const newSup = {
-    id: newId,
-    name,
-    phone,
-    location,
-    category,
-    status: 'active',
-    totalPurchases: 0,
-    outstanding: 0,
-    notes
-  };
+  await withSubmissionLock('saveSupplier', '#btn-save-supplier', async () => {
+    try {
+      await RT.gasPost('createSupplier', {
+        name,
+        phone,
+        location,
+        category,
+        supplyCategory: category,
+        status: 'Active',
+        notes
+      });
 
-  RT.SUPPLIERS.unshift(newSup);
-
-  // Update supplier dropdowns in purchase modal
-  const supOpts = RT.SUPPLIERS.filter(s => s.status === 'active')
-    .map(s => `<option value="${s.id}">${s.name} · ${s.location}</option>`).join('');
-  const supSel = document.getElementById('purchase-supplier');
-  if (supSel) {
-    supSel.innerHTML = '<option value="">Select supplier…</option>' + supOpts;
-    supSel.value = String(newId);
-  }
-
-  closeModal();
-  showToast(`Supplier "${name}" registered successfully`, 'success');
-  renderSuppliers();
+      closeModal();
+      showToast(`Supplier "${name}" registered in Google Sheets`, 'success');
+      await RT.refresh();
+      renderSuppliers();
+    } catch (err) {
+      showToast(err.message || 'Failed to save supplier in Google Sheets', 'danger');
+    }
+  });
 }

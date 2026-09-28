@@ -184,24 +184,29 @@ export const api = {
 
 /** Format number as Indian Rupees: ₹1,23,456.00 */
 export function formatCurrency(amount: number): string {
-  return '₹' + amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  if (amount === undefined || amount === null || isNaN(Number(amount))) return '₹0.00';
+  return '₹' + Number(amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 /** Format as compact currency: ₹1.2L, ₹45.3K */
 export function formatCurrencyCompact(amount: number): string {
-  if (Math.abs(amount) >= 100000) return '₹' + (amount / 100000).toFixed(1) + 'L';
-  if (Math.abs(amount) >= 1000) return '₹' + (amount / 1000).toFixed(1) + 'K';
-  return formatCurrency(amount);
+  if (amount === undefined || amount === null || isNaN(Number(amount))) return '₹0';
+  const n = Number(amount);
+  if (Math.abs(n) >= 100000) return '₹' + (n / 100000).toFixed(1) + 'L';
+  if (Math.abs(n) >= 1000) return '₹' + (n / 1000).toFixed(1) + 'K';
+  return formatCurrency(n);
 }
 
 /** Format KG quantity */
 export function formatQty(qty: number): string {
-  return qty.toLocaleString('en-IN', { maximumFractionDigits: 2 }) + ' KG';
+  if (qty === undefined || qty === null || isNaN(Number(qty))) return '0 KG';
+  return Number(qty).toLocaleString('en-IN', { maximumFractionDigits: 2 }) + ' KG';
 }
 
 /** Format percentage */
 export function formatPct(pct: number): string {
-  return pct.toFixed(1) + '%';
+  if (pct === undefined || pct === null || isNaN(Number(pct))) return '0.0%';
+  return Number(pct).toFixed(1) + '%';
 }
 
 /** Format date from YYYY-MM-DD to readable */

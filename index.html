@@ -15,7 +15,7 @@
   <!-- Design System -->
   <link rel="stylesheet" href="css/tokens.css">
   <link rel="stylesheet" href="css/layout.css">
-  <link rel="stylesheet" href="css/components.css?v=4.0">
+  <link rel="stylesheet" href="css/components.css?v=5.0">
 
   <!-- Libraries -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" defer></script>
@@ -107,9 +107,9 @@
     <!-- User Footer -->
     <div class="sidebar-footer">
       <div class="sidebar-user">
-        <div class="sidebar-avatar">RV</div>
+        <div class="sidebar-avatar" id="sidebar-user-avatar">BA</div>
         <div class="sidebar-user-info">
-          <div class="sidebar-user-name">R. Venkatesh</div>
+          <div class="sidebar-user-name" id="sidebar-user-name">Budime Aravind</div>
           <div class="sidebar-user-role">Owner · Administrator</div>
         </div>
         <i data-lucide="chevron-right" style="width:14px;height:14px;color:rgba(255,255,255,0.2);flex-shrink:0"></i>
@@ -155,7 +155,14 @@
 
         <div style="width:1px;height:20px;background:var(--border)"></div>
 
-        <span class="header-date">27 Sep 2026 · Sunday</span>
+        <div style="display:flex;align-items:center;gap:5px;font-size:var(--tx-xs);color:var(--text-2);font-weight:var(--fw-medium)">
+          <i data-lucide="map-pin" style="width:13px;height:13px;color:var(--primary);flex-shrink:0"></i>
+          <span id="header-location">Huzurabad, Telangana</span>
+        </div>
+
+        <div style="width:1px;height:20px;background:var(--border)"></div>
+
+        <span class="header-date" id="header-date">27 Sep 2026 · Sunday</span>
 
         <div style="width:1px;height:20px;background:var(--border)"></div>
 
@@ -245,7 +252,7 @@
                     <label class="form-label" for="ms-date">Date <span class="required">*</span></label>
                     <span class="ms-stock-chip" style="color:var(--text-3);font-size:11px;">Billing Day</span>
                   </div>
-                  <input class="input date-default" type="date" id="ms-date" value="2026-09-27" required>
+                  <input class="input date-default" type="date" id="ms-date" required>
                 </div>
               </div>
 
@@ -417,7 +424,7 @@
             <button class="btn btn-secondary" onclick="openModal('new-purchase')" id="btn-new-purchase-dash">
               <i data-lucide="plus"></i> New Purchase
             </button>
-            <button class="btn btn-primary btn-lg" onclick="openModal('new-sale')" id="btn-new-sale-dash">
+            <button class="btn btn-primary btn-lg" onclick="navigateTo('make-sale')" id="btn-new-sale-dash">
               <i data-lucide="plus"></i> Record Sale
             </button>
           </div>
@@ -658,7 +665,7 @@
             <p class="page-heading-sub">All recorded sales transactions</p>
           </div>
           <div class="page-actions">
-            <button class="btn btn-primary btn-lg" onclick="openModal('new-sale')" id="btn-new-sale">
+            <button class="btn btn-primary btn-lg" onclick="navigateTo('make-sale')" id="btn-new-sale">
               <i data-lucide="plus"></i> New Sale
             </button>
           </div>
@@ -779,7 +786,7 @@
                   <th>Product</th>
                   <th class="num">Qty</th>
                   <th class="num">Total Cost</th>
-                  <th class="num">Avg Unit Cost</th>
+                  <th class="num">Lot Rate / Unit</th>
                   <th class="num">Target Rate</th>
                   <th class="num">Remaining Stock</th>
                   <th>Payment</th>
@@ -869,7 +876,7 @@
         <div class="page-header">
           <div class="page-heading-group">
             <h1 class="page-heading">Suppliers</h1>
-            <p class="page-heading-sub">Vendor relationships, purchase history, and outstanding dues</p>
+            <p class="page-heading-sub">Vendor sourcing analytics, volume intake, and procurement history</p>
           </div>
           <div class="page-actions">
             <div class="search-wrap">
@@ -885,6 +892,60 @@
 
         <div class="kpi-grid" id="supplier-kpis" style="grid-template-columns:repeat(3,1fr);margin-bottom:var(--section-gap)"></div>
 
+        <!-- ── Supplier Procurement & Sourcing Intelligence ── -->
+        <div class="chart-card" style="margin-bottom:var(--section-gap)">
+          <div class="chart-header" style="flex-wrap:wrap;gap:var(--sp-3);justify-content:space-between;align-items:center;">
+            <div>
+              <div class="chart-title">Supplier Sourcing Intelligence</div>
+              <div class="chart-subtitle">Historical procurement spend, volume intake, and purchase timeline per vendor</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:var(--sp-3)">
+              <label for="supplier-analytics-select" style="font-size:var(--tx-xs);font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.04em;">Select Seller:</label>
+              <select class="input" id="supplier-analytics-select" style="min-width:240px;height:36px;font-size:var(--tx-sm);" onchange="handleSupplierAnalyticsChange(this.value)">
+                <option value="">Select a supplier…</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Seller Telemetry Metric Badges -->
+          <div id="supplier-metrics-bar" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(170px, 1fr));gap:var(--sp-3);padding:var(--sp-4);background:var(--surface-2);border-radius:var(--radius-md);margin-bottom:var(--sp-4);border:1px solid var(--border-light)">
+            <!-- Populated dynamically -->
+          </div>
+
+          <div class="chart-canvas-wrap" style="height:320px;position:relative;">
+            <canvas id="chart-supplier-history" aria-label="Supplier procurement history chart"></canvas>
+            <div id="supplier-chart-empty" style="display:none;position:absolute;inset:0;align-items:center;justify-content:center;flex-direction:column;gap:8px;color:var(--text-3);background:var(--surface-1);">
+              <i data-lucide="calendar" style="width:36px;height:36px;opacity:0.4;"></i>
+              <div style="font-weight:600;font-size:var(--tx-sm)">No Purchase Records Found</div>
+              <div style="font-size:var(--tx-xs);opacity:0.8;">No sourcing transactions logged yet for this supplier.</div>
+            </div>
+          </div>
+
+          <!-- Sourcing Lots Table for Selected Vendor -->
+          <div id="supplier-lots-section" style="margin-top:var(--sp-5);border-top:1px solid var(--border-light);padding-top:var(--sp-4);">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--sp-3);">
+              <div style="font-weight:700;font-size:var(--tx-sm);color:var(--text-1);">Procurement Lots &amp; Batches</div>
+              <span id="supplier-lots-count" class="badge badge-neutral" style="font-size:11px;">0 Lots</span>
+            </div>
+            <div class="table-overflow" style="max-height:260px;">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Lot #</th>
+                    <th>Produce / Product</th>
+                    <th class="num">Quantity Sourced</th>
+                    <th class="num">Unit Cost</th>
+                    <th class="num">Total Spend</th>
+                    <th>Payment</th>
+                  </tr>
+                </thead>
+                <tbody id="supplier-lots-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
         <div class="table-wrap">
           <div class="table-toolbar">
             <span class="table-toolbar-title">Supplier Directory</span>
@@ -898,7 +959,7 @@
                   <th>Location</th>
                   <th>Category</th>
                   <th class="num">Total Purchases</th>
-                  <th class="num">Outstanding</th>
+                  <th class="num">Total Volume Sourced</th>
                   <th>Status</th>
                 </tr>
               </thead>
@@ -1197,8 +1258,8 @@
                 <i data-lucide="shield-check" style="width:16px;height:16px;color:var(--gold-deep)"></i>
               </div>
               <div style="flex:1">
-                <div style="font-size:var(--tx-sm);font-weight:var(--fw-bold);color:var(--text-1)">RajaRajeshwari Traders — v3.0 Classic</div>
-                <div style="font-size:var(--tx-xs);color:var(--text-3);margin-top:2px">Hosur, Tamil Nadu · GSTIN: 33AAACR1234M1ZT · Data stored in-session</div>
+                <div style="font-size:var(--tx-sm);font-weight:var(--fw-bold);color:var(--text-1)" id="settings-business-name">RajaRajeshwari Traders</div>
+                <div style="font-size:var(--tx-xs);color:var(--text-3);margin-top:2px" id="settings-business-meta">Huzurabad, Telangana · Connected to Google Sheets REST API v2.0</div>
               </div>
               <div class="system-status">
                 <div class="system-status-dot"></div>
@@ -1466,7 +1527,7 @@
 
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
-      <button class="btn btn-primary btn-lg" onclick="saveSale()">
+      <button class="btn btn-primary btn-lg" id="btn-save-sale" onclick="saveSale()">
         <i data-lucide="check"></i> Save Sale
       </button>
     </div>
@@ -1539,7 +1600,7 @@
           <label class="form-label" for="purchase-calculated-rate">Calculated Unit Cost</label>
           <div class="input-wrap">
             <span class="input-prefix">₹</span>
-            <input class="input has-prefix" type="text" id="purchase-calculated-rate" readonly placeholder="0.00" style="background:var(--surface-2);color:var(--text-1);font-weight:700">
+            <input class="input has-prefix has-suffix" type="text" id="purchase-calculated-rate" readonly placeholder="0.00" style="background:var(--surface-2);color:var(--text-1);font-weight:700">
             <span class="input-suffix" id="purchase-calc-unit-label">/ KG</span>
           </div>
         </div>
@@ -1547,7 +1608,7 @@
           <label class="form-label" for="purchase-target-rate">Target Selling Rate <span class="required">*</span></label>
           <div class="input-wrap">
             <span class="input-prefix">₹</span>
-            <input class="input has-prefix" type="number" id="purchase-target-rate" placeholder="0.00"
+            <input class="input has-prefix has-suffix" type="number" id="purchase-target-rate" placeholder="0.00"
               step="0.50" min="0.1" required oninput="updatePurchaseCalc()">
             <span class="input-suffix" id="purchase-target-unit-label">/ KG</span>
           </div>
@@ -1573,7 +1634,7 @@
 
     <div class="modal-footer">
       <button class="btn btn-secondary btn-lg" onclick="closeModal()">Cancel</button>
-      <button class="btn btn-primary btn-lg" onclick="savePurchase()">
+      <button class="btn btn-primary btn-lg" id="btn-save-purchase" onclick="savePurchase()">
         <i data-lucide="check"></i> Save Purchase
       </button>
     </div>
@@ -1612,12 +1673,11 @@
           <div class="form-group">
             <label class="form-label" for="supplier-category">Sourced Produce Category <span class="required">*</span></label>
             <select class="input" id="supplier-category" required>
-              <option value="Onion & Garlic">Onion & Garlic</option>
-              <option value="Mixed Vegetables">Mixed Vegetables</option>
-              <option value="Potato & Ginger">Potato & Ginger</option>
-              <option value="Spices">Spices</option>
-              <option value="Tomato">Tomato</option>
-              <option value="General Produce">General Produce</option>
+              <option value="White Onion">White Onion</option>
+              <option value="Red Onion">Red Onion</option>
+              <option value="Garlic">Garlic</option>
+              <option value="Ginger">Ginger</option>
+              <option value="Potato">Potato</option>
             </select>
           </div>
         </div>
@@ -1627,10 +1687,6 @@
           <div class="modal-summary-row">
             <span class="modal-summary-label">Payment Policy</span>
             <span class="modal-summary-value" style="font-size:12px;font-weight:700;color:var(--success)">100% Zero-Credit / Immediate Settlement</span>
-          </div>
-          <div class="modal-summary-row highlighted">
-            <span class="modal-summary-label strong">Initial Outstanding Due</span>
-            <span class="modal-summary-value" style="color:var(--success)">₹0.00</span>
           </div>
         </div>
       </div>
@@ -1707,7 +1763,7 @@
 
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
-      <button class="btn btn-primary btn-lg" onclick="saveExpense()">
+      <button class="btn btn-primary btn-lg" id="btn-save-expense" onclick="saveExpense()">
         <i data-lucide="check"></i> Save Expense
       </button>
     </div>
@@ -1730,7 +1786,7 @@
         <div class="form-row">
           <div class="form-group">
             <label class="form-label" for="wastage-date">Date <span class="required">*</span></label>
-            <input class="input date-default" type="date" id="wastage-date" value="2026-09-27" required>
+            <input class="input date-default" type="date" id="wastage-date" required>
           </div>
           <div class="form-group">
             <label class="form-label" for="wastage-product">Product <span class="required">*</span></label>
@@ -1803,30 +1859,145 @@
 <!-- ═══════════════════════════════════════
      SCRIPTS
      ═══════════════════════════════════════ -->
-<script src="js/data.js?v=4.0"></script>
-<script src="js/charts.js?v=4.0"></script>
-<script src="js/app.js?v=4.0"></script>
+<script src="js/data.js?v=22.0"></script>
+<script src="js/charts.js?v=22.0"></script>
+<script src="js/app.js?v=22.0"></script>
 
-<!-- Post-load init: populate selects & tables -->
+<!-- Post-load init: populate selects & tables — runs AFTER Google Sheets data is loaded -->
 <script>
-document.addEventListener('DOMContentLoaded', function() {
+function _initSelectsAndWidgets() {
+  if (!window.RT) return;
+
+  // Dynamic store metadata from Google Sheets backend
+  const biz = RT.BUSINESS || {};
+  const hdrLoc = document.getElementById('header-location');
+  if (hdrLoc && biz.location) hdrLoc.textContent = biz.location;
+
+  const sideSub = document.querySelector('.sidebar-brand-sub');
+  if (sideSub && biz.location) sideSub.textContent = biz.location;
+
+  const sideBrand = document.querySelector('.sidebar-brand-name');
+  if (sideBrand && biz.name) sideBrand.textContent = biz.name;
+
+  const sideUser = document.getElementById('sidebar-user-name');
+  if (sideUser && biz.owner) sideUser.textContent = biz.owner;
+
+  const sideAvatar = document.getElementById('sidebar-user-avatar');
+  if (sideAvatar && biz.owner) {
+    const initials = biz.owner.split(' ').map(w => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
+    sideAvatar.textContent = initials || 'RT';
+  }
+
+  const setMeta = document.getElementById('settings-business-meta');
+  if (setMeta && biz.location) {
+    setMeta.textContent = `${biz.location} · Connected to Google Sheets REST API v${biz.version || '2.0'}`;
+  }
+
+  const setName = document.getElementById('settings-business-name');
+  if (setName && biz.name) setName.value = biz.name;
+
+  const setOwner = document.getElementById('settings-owner');
+  if (setOwner && biz.owner) setOwner.value = biz.owner;
+
+  const setLoc = document.getElementById('settings-location');
+  if (setLoc && biz.location) setLoc.value = biz.location;
+
+  // Dynamic header date
+  const now = new Date();
+  const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const dateStr = `${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()} · ${days[now.getDay()]}`;
+  const hdrDate = document.getElementById('header-date');
+  if (hdrDate) hdrDate.textContent = dateStr;
+
   // Populate product selects
-  const productOpts = RT.PRODUCTS.map(p =>
+  const prods = RT.PRODUCTS || [];
+  const productOpts = prods.map(p =>
     `<option value="${p.id}">${p.name} (${p.unit}) — Stock: ${p.currentStock} ${p.unit}</option>`
   ).join('');
   document.querySelectorAll('#sale-product, #purchase-product').forEach(s => {
-    s.innerHTML = '<option value="">Select product…</option>' + productOpts;
+    s.innerHTML = '<option value="">' + (prods.length ? 'Select product…' : 'No products available') + '</option>' + productOpts;
   });
 
-  // Supplier select
-  const supplierOpts = RT.SUPPLIERS.filter(s => s.status === 'active')
-    .map(s => `<option value="${s.id}">${s.name} · ${s.location}</option>`).join('');
+  // Supplier category select: derive directly from live products
+  const supCat = document.getElementById('supplier-category');
+  if (supCat && prods.length > 0) {
+    supCat.innerHTML = prods.map(p => `<option value="${p.name}">${p.name}</option>`).join('');
+  }
+
+  // Supplier select with produce line disambiguation
+  const sups = RT.SUPPLIERS || [];
+  const supplierOpts = sups.filter(s => s.status === 'active')
+    .map(s => {
+      const cat = s.category || s.supplyCategory || '';
+      const catBadge = cat ? ` (${cat})` : '';
+      return `<option value="${s.id}" data-category="${cat}">${s.name} · ${s.location}${catBadge}</option>`;
+    }).join('');
   const supSel = document.getElementById('purchase-supplier');
-  if (supSel) supSel.innerHTML = '<option value="">Select supplier…</option>' + supplierOpts;
+  if (supSel) {
+    supSel.innerHTML = (sups.length === 0)
+      ? '<option value="">No active suppliers yet — add in Suppliers tab</option>'
+      : '<option value="">Select seller / supplier…</option>' + supplierOpts;
+  }
+
+  // Supplier -> Product auto-selection link
+  if (supSel && !supSel.dataset.autoSelectProductBound) {
+    supSel.dataset.autoSelectProductBound = 'true';
+    supSel.addEventListener('change', function() {
+      const supId = this.value;
+      if (!supId) return;
+      const sup = RT.getSupplierById(supId);
+      const cat = ((sup ? (sup.category || sup.supplyCategory) : '') || '').trim();
+      if (!cat) return;
+
+      const currentProds = RT.PRODUCTS || [];
+      const catNorm = cat.toLowerCase();
+      // Match strategy: exact product name -> product category match -> substring match
+      const matched = currentProds.find(p => p.name.trim().toLowerCase() === catNorm)
+        || currentProds.find(p => p.category && p.category.trim().toLowerCase() === catNorm)
+        || currentProds.find(p => p.name.trim().toLowerCase().includes(catNorm) || catNorm.includes(p.name.trim().toLowerCase()));
+
+      if (matched) {
+        const prodSel = document.getElementById('purchase-product');
+        if (prodSel) {
+          prodSel.value = matched.id;
+          if (typeof handlePurchaseProductChange === 'function') {
+            handlePurchaseProductChange();
+          }
+        }
+      }
+    });
+  }
+
+  // Supplier analytics select (#supplier-analytics-select)
+  const supAnalyticsSel = document.getElementById('supplier-analytics-select');
+  if (supAnalyticsSel && sups.length > 0) {
+    const activeSups = sups.filter(s => s.status === 'active');
+    const prevVal = supAnalyticsSel.value;
+    supAnalyticsSel.innerHTML = activeSups.length === 0
+      ? '<option value="">No registered suppliers</option>'
+      : activeSups.map(s => {
+          const cat = s.category || s.supplyCategory || '';
+          const catLabel = cat ? ` (${cat})` : '';
+          return `<option value="${s.id}">${s.name} · ${s.location}${catLabel}</option>`;
+        }).join('');
+
+    if (prevVal && activeSups.some(s => String(s.id) === String(prevVal))) {
+      supAnalyticsSel.value = prevVal;
+    } else if (activeSups.length > 0) {
+      supAnalyticsSel.value = activeSups[0].id;
+    }
+    // Chart is triggered by renderSuppliers() below via its own setTimeout
+  }
+
+  // Render supplier directory table
+  if (typeof renderSuppliers === 'function') {
+    renderSuppliers();
+  }
 
   // Unit label update
   document.getElementById('sale-product')?.addEventListener('change', function() {
-    const p = RT.getProductById(parseInt(this.value));
+    const p = RT.getProductById(this.value);
     const lbl = document.getElementById('sale-unit-label');
     if (lbl) lbl.textContent = p ? p.unit : 'KG';
   });
@@ -1835,83 +2006,101 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('purchase-paid')?.addEventListener('input', function() {
     const el = document.getElementById('purchase-paid-display');
     if (el) el.textContent = RT.fmt(parseFloat(this.value) || 0, 2);
-    updatePurchaseCalc();
+    if (typeof updatePurchaseCalc === 'function') updatePurchaseCalc();
   });
 
-  // Settings products table — extended with category + current stock
+  // Settings products table
   const tbody = document.getElementById('settings-products-tbody');
   if (tbody) {
-    tbody.innerHTML = RT.PRODUCTS.map(p => {
-      const status = RT.getStockStatus(p);
-      const stockColor = status === 'out' ? 'var(--danger)' : status === 'low' ? 'var(--warning)' : 'var(--success)';
-      return `
-        <tr>
-          <td class="col-primary">${p.name}</td>
-          <td><span class="badge badge-neutral">${p.category}</span></td>
-          <td>${p.unit}</td>
-          <td class="num">${RT.fmt(p.avgCost, 2)}</td>
-          <td class="num" style="color:var(--text-3)">${p.reorderLevel} ${p.unit}</td>
-          <td class="num col-amount" style="color:${stockColor};font-weight:var(--fw-bold)">${RT.fmtNum(p.currentStock)} ${p.unit}</td>
-        </tr>
-      `;
-    }).join('');
+    tbody.innerHTML = RT.PRODUCTS.length === 0
+      ? '<tr><td colspan="6" style="text-align:center;color:var(--text-3);padding:24px;">No products found in Google Sheets</td></tr>'
+      : RT.PRODUCTS.map(p => {
+          const status = RT.getStockStatus(p);
+          const stockColor = status === 'out' ? 'var(--danger)' : status === 'low' ? 'var(--warning)' : 'var(--success)';
+          return `
+            <tr>
+              <td class="col-primary">${p.name}</td>
+              <td><span class="badge badge-neutral">${p.category || '—'}</span></td>
+              <td>${p.unit}</td>
+              <td class="num">${RT.fmt(p.avgCost, 2)}</td>
+              <td class="num" style="color:var(--text-3)">${p.reorderLevel} ${p.unit}</td>
+              <td class="num col-amount" style="color:${stockColor};font-weight:var(--fw-bold)">${RT.fmtNum(p.currentStock)} ${p.unit}</td>
+            </tr>
+          `;
+        }).join('');
   }
 
   // Reports product table
   const rBody = document.getElementById('reports-product-body');
   if (rBody) {
     const data = RT.getSalesByProduct('7d');
-    rBody.innerHTML = data.labels.map((label, i) => {
-      const sales = RT.filterSalesByPeriod('7d').filter(s => RT.getProductById(s.productId)?.name === label);
-      const rev   = data.values[i];
-      const cogs  = sales.reduce((sum, s) => sum + RT.saleCost(s), 0);
-      const profit = rev - cogs;
-      const margin = rev ? ((profit / rev) * 100).toFixed(1) : '0.0';
-      const units  = sales.reduce((sum, s) => sum + s.quantity, 0);
-      const prod   = RT.PRODUCTS.find(p => p.name === label);
-      return `
-        <tr>
-          <td class="col-primary">${label}</td>
-          <td class="num">${RT.fmtNum(units)} ${prod?.unit || ''}</td>
-          <td class="num col-amount">${RT.fmt(rev)}</td>
-          <td class="num" style="color:var(--warning)">${RT.fmt(cogs)}</td>
-          <td class="num" style="color:var(--success);font-weight:var(--fw-bold)">${RT.fmt(profit)}</td>
-          <td class="num" style="color:${parseFloat(margin)>=15?'var(--success)':parseFloat(margin)>=8?'var(--warning)':'var(--danger)'}">${margin}%</td>
-        </tr>
-      `;
-    }).join('');
+    rBody.innerHTML = data.labels.length === 0
+      ? '<tr><td colspan="6" style="text-align:center;color:var(--text-3);padding:24px;">No sales data for this period</td></tr>'
+      : data.labels.map((label, i) => {
+          const sales = RT.filterSalesByPeriod('7d').filter(s => {
+            const pr = RT.getProductById(s.productId);
+            return pr ? pr.name === label : (s.productName === label);
+          });
+          const rev    = data.values[i];
+          const cogs   = sales.reduce((sum, s) => sum + RT.saleCost(s), 0);
+          const profit = rev - cogs;
+          const margin = rev ? ((profit / rev) * 100).toFixed(1) : '0.0';
+          const units  = sales.reduce((sum, s) => sum + s.quantity, 0);
+          const prod   = RT.PRODUCTS.find(p => p.name === label);
+          return `
+            <tr>
+              <td class="col-primary">${label}</td>
+              <td class="num">${RT.fmtNum(units)} ${prod?.unit || ''}</td>
+              <td class="num col-amount">${RT.fmt(rev)}</td>
+              <td class="num" style="color:var(--warning)">${RT.fmt(cogs)}</td>
+              <td class="num" style="color:var(--success);font-weight:var(--fw-bold)">${RT.fmt(profit)}</td>
+              <td class="num" style="color:${parseFloat(margin)>=15?'var(--success)':parseFloat(margin)>=8?'var(--warning)':'var(--danger)'}">${margin}%</td>
+            </tr>
+          `;
+        }).join('');
   }
 
   // Supplier KPI cards
   const supKpi = document.getElementById('supplier-kpis');
   if (supKpi) {
-    const active = RT.SUPPLIERS.filter(s => s.status === 'active').length;
-    const totalBuy = RT.SUPPLIERS.reduce((s, x) => s + x.totalPurchases, 0);
-    const totalDue = RT.SUPPLIERS.reduce((s, x) => s + x.outstanding, 0);
-    supKpi.innerHTML = `
-      <div class="kpi-card accent-primary">
-        <div class="kpi-icon primary"><i data-lucide="truck"></i></div>
-        <div class="kpi-label">Active Suppliers</div>
-        <div class="kpi-value" style="font-size:var(--tx-4xl)">${active}</div>
-        <div class="kpi-context"><span class="kpi-period">of ${RT.SUPPLIERS.length} total</span></div>
-      </div>
-      <div class="kpi-card accent-success">
-        <div class="kpi-icon success"><i data-lucide="receipt"></i></div>
-        <div class="kpi-label">Total Purchased</div>
-        <div class="kpi-value" style="font-size:var(--tx-3xl)">${RT.fmt(totalBuy)}</div>
-        <div class="kpi-context"><span class="kpi-period">all time cumulative</span></div>
-      </div>
-      <div class="kpi-card ${totalDue > 0 ? 'accent-warning' : 'accent-success'}">
-        <div class="kpi-icon ${totalDue > 0 ? 'warning' : 'success'}"><i data-lucide="alert-circle"></i></div>
-        <div class="kpi-label">Outstanding Dues</div>
-        <div class="kpi-value" style="font-size:var(--tx-3xl);color:${totalDue > 0 ? 'var(--warning)' : 'var(--success)'}">${RT.fmt(totalDue)}</div>
-        <div class="kpi-context"><span class="kpi-period">${totalDue > 0 ? 'pending payment' : 'all settled'}</span></div>
-      </div>
-    `;
+    if (RT.SUPPLIERS.length === 0) {
+      supKpi.innerHTML = '<div style="color:var(--text-3);padding:20px;font-size:13px;">No supplier data available</div>';
+    } else {
+      const active   = RT.SUPPLIERS.filter(s => s.status === 'active').length;
+      const totalBuy = (RT.PURCHASES || []).reduce((s, x) => s + (x.totalCost || 0), 0)
+        || RT.SUPPLIERS.reduce((s, x) => s + (x.totalPurchases || 0), 0);
+      const totalQty = (RT.PURCHASES || []).reduce((s, x) => s + (x.quantity || 0), 0);
+      const totalLots = (RT.PURCHASES || []).length;
+      supKpi.innerHTML = `
+        <div class="kpi-card accent-primary">
+          <div class="kpi-icon primary"><i data-lucide="truck"></i></div>
+          <div class="kpi-label">Active Suppliers</div>
+          <div class="kpi-value" style="font-size:var(--tx-4xl)">${active}</div>
+          <div class="kpi-context"><span class="kpi-period">of ${RT.SUPPLIERS.length} total registered</span></div>
+        </div>
+        <div class="kpi-card accent-success">
+          <div class="kpi-icon success"><i data-lucide="receipt"></i></div>
+          <div class="kpi-label">Total Purchased</div>
+          <div class="kpi-value" style="font-size:var(--tx-3xl)">${RT.fmt(totalBuy)}</div>
+          <div class="kpi-context"><span class="kpi-period">${totalLots} sourcing batches</span></div>
+        </div>
+        <div class="kpi-card accent-teal">
+          <div class="kpi-icon teal"><i data-lucide="scale"></i></div>
+          <div class="kpi-label">Total Volume Sourced</div>
+          <div class="kpi-value" style="font-size:var(--tx-3xl);color:var(--text-1)">${RT.fmtNum(totalQty)} <span style="font-size:var(--tx-base);font-weight:600;color:var(--text-3)">KG</span></div>
+          <div class="kpi-context"><span class="kpi-period">all produce cumulative</span></div>
+        </div>
+      `;
+    }
   }
 
   if (window.lucide) lucide.createIcons();
-});
+}
+
+// Hook into the RT ready event fired by data.js after hydration
+document.addEventListener('rt:ready', _initSelectsAndWidgets);
+// Also re-run on manual refresh
+document.addEventListener('rt:refreshed', _initSelectsAndWidgets);
 </script>
 
 

@@ -13,8 +13,8 @@ export const APP_CONFIG = {
   shortName: 'RRT',
   currency: '₹',
   unit: 'KG',
-  location: 'Hosur, Tamil Nadu',
-  owner: 'R. Venkatesh',
+  location: 'Huzurabad, Telangana',
+  owner: 'Budime Aravind',
 } as const;
 
 export const CUSTOMER_TYPES = ['Walk-in', 'Shopkeeper', 'Hotel'] as const;

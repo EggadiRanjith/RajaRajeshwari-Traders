@@ -46,7 +46,18 @@ function doGet(e) {
 
     switch (action) {
       case 'ping':
-        result = { status: 'ok', time: new Date().toISOString(), store: 'RajaRajeshwari Traders', version: '2.0' };
+        result = {
+          status: 'ok',
+          time: new Date().toISOString(),
+          store: 'RajaRajeshwari Traders',
+          owner: 'Budime Aravind',
+          location: 'Huzurabad, Telangana',
+          version: '2.0',
+          settings: getSettings()
+        };
+        break;
+      case 'getSettings':
+        result = getSettings();
         break;
       case 'getProducts':
         result = getProducts();
@@ -344,8 +355,8 @@ function initWorkbookSheets() {
     setSheet.appendRow(['Key', 'Value']);
     setSheet.getRange(1, 1, 1, 2).setFontWeight('bold').setBackground(HEADER_BG).setFontColor(HEADER_FG);
     setSheet.appendRow(['Business Name', 'RajaRajeshwari Traders']);
-    setSheet.appendRow(['Owner', 'R. Venkatesh']);
-    setSheet.appendRow(['Location', 'Hosur, Tamil Nadu']);
+    setSheet.appendRow(['Owner', 'Budime Aravind']);
+    setSheet.appendRow(['Location', 'Huzurabad, Telangana']);
     setSheet.appendRow(['Currency', '₹']);
     setSheet.appendRow(['Unit', 'KG']);
     setSheet.appendRow(['Credit Policy', 'ZERO CREDIT — All transactions paid at receipt']);
@@ -359,6 +370,29 @@ function initWorkbookSheets() {
 /* ══════════════════════════════════════════════════
    GET — READ FUNCTIONS
    ══════════════════════════════════════════════════ */
+
+/** Get application settings from SETTINGS sheet */
+function getSettings() {
+  const sheet = getSheet(SHEET_NAMES.SETTINGS);
+  const rows = sheet.getDataRange().getValues();
+  const settings = {
+    'Business Name': 'RajaRajeshwari Traders',
+    'Owner': 'Budime Aravind',
+    'Location': 'Huzurabad, Telangana',
+    'Currency': '₹',
+    'Unit': 'KG',
+    'Credit Policy': 'ZERO CREDIT — All transactions paid at receipt',
+    'Version': '2.0'
+  };
+  if (rows.length > 1) {
+    for (let i = 1; i < rows.length; i++) {
+      const k = String(rows[i][0] || '').trim();
+      const v = String(rows[i][1] || '').trim();
+      if (k) settings[k] = v;
+    }
+  }
+  return settings;
+}
 
 /** Get all active products */
 function getProducts() {

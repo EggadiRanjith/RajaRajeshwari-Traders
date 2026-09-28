@@ -662,6 +662,255 @@ const Charts = (() => {
   }
 
   /* ══════════════════════════════════════════════
+     SUPPLIER PROCUREMENT SOURCING INTELLIGENCE
+     Timeline of money spent, quantity sourced & dates per individual seller
+     ══════════════════════════════════════════════ */
+  function renderSupplierHistory(supplierId) {
+    const canvasId    = 'chart-supplier-history';
+    const canvas      = document.getElementById(canvasId);
+    const emptyEl     = document.getElementById('supplier-chart-empty');
+    const lotsTbody   = document.getElementById('supplier-lots-tbody');
+    const lotsCountEl = document.getElementById('supplier-lots-count');
+    const metricsBar  = document.getElementById('supplier-metrics-bar');
+    if (!canvas) return;
+
+    // Resolve supplier — fall back to first active if nothing passed
+    if (!supplierId) {
+      const active = (RT.SUPPLIERS || []).filter(s => s.status === 'active');
+      if (active.length === 0) return;
+      supplierId = active[0].id;
+      const sel = document.getElementById('supplier-analytics-select');
+      if (sel && !sel.value) sel.value = supplierId;
+    }
+
+    const sup = RT.getSupplierById(supplierId);
+
+    /* ── 3-TIER PURCHASE MATCHING ──────────────────────────────────────────
+       Tier 1: Strict supplierId string match (preferred).
+       Tier 2: supplierName + productName contains supplyCategory (prevents
+               cross-contamination between two suppliers with the same name
+               but different produce lines, e.g. Ramesh White Onion vs Red Onion).
+       Tier 3: supplierName-only (last resort when category data unavailable).
+       ─────────────────────────────────────────────────────────────────────── */
+    const allPurchases = RT.PURCHASES || [];
+    let rawPurchases = [];
+
+    // Tier 1 — strict ID
+    rawPurchases = allPurchases.filter(p =>
+      supplierId && p.supplierId &&
+      String(p.supplierId).trim() === String(supplierId).trim()
+    );
+
+    // Tier 2 — name + category
+    if (rawPurchases.length === 0 && sup) {
+      const sName = (sup.name || '').trim().toLowerCase();
+      const sCat  = (sup.category || sup.supplyCategory || '').trim().toLowerCase();
+      if (sName && sCat) {
+        rawPurchases = allPurchases.filter(p =>
+          (p.supplierName || '').trim().toLowerCase() === sName &&
+          (p.productName  || '').trim().toLowerCase().includes(sCat)
+        );
+      }
+    }
+
+    // Tier 3 — name only
+    if (rawPurchases.length === 0 && sup) {
+      const sName = (sup.name || '').trim().toLowerCase();
+      if (sName) {
+        rawPurchases = allPurchases.filter(p =>
+          (p.supplierName || '').trim().toLowerCase() === sName
+        );
+      }
+    }
+
+    // Sort oldest → newest for timeline
+    rawPurchases = rawPurchases.slice().sort((a, b) =>
+      (a.date || '').localeCompare(b.date || '')
+    );
+
+    // ── METRICS BAR ───────────────────────────────────────────────────────
+    if (metricsBar) {
+      const totalSpend  = rawPurchases.reduce((s, p) => s + (p.totalCost || 0), 0);
+      const totalVolume = rawPurchases.reduce((s, p) => s + (p.quantity || 0), 0);
+      const rates = rawPurchases.map(p => p.rate || (p.quantity > 0 ? p.totalCost / p.quantity : 0)).filter(r => r > 0);
+      const minRate = rates.length ? Math.min(...rates) : 0;
+      const maxRate = rates.length ? Math.max(...rates) : 0;
+      const rateLabel = minRate === 0 ? '₹0.00' : (minRate === maxRate ? `${RT.fmt(minRate, 2)}` : `${RT.fmt(minRate, 2)} – ${RT.fmt(maxRate, 2)}`);
+      const lastDate    = rawPurchases.length > 0 ? rawPurchases[rawPurchases.length - 1].date : null;
+      const category    = sup ? (sup.category || sup.supplyCategory || 'Produce') : 'Produce';
+      metricsBar.innerHTML = `
+        <div style="padding:10px 14px;background:var(--surface-1);border-radius:var(--radius-sm);border:1px solid var(--border-light)">
+          <div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.04em;">Total Sourced Spend</div>
+          <div style="font-size:18px;font-weight:800;color:var(--primary);margin-top:2px;">${RT.fmt(totalSpend)}</div>
+        </div>
+        <div style="padding:10px 14px;background:var(--surface-1);border-radius:var(--radius-sm);border:1px solid var(--border-light)">
+          <div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.04em;">Total Sourced Volume</div>
+          <div style="font-size:18px;font-weight:800;color:var(--success);margin-top:2px;">${RT.fmtNum(totalVolume)} <span style="font-size:12px;font-weight:600;color:var(--text-3)">KG</span></div>
+        </div>
+        <div style="padding:10px 14px;background:var(--surface-1);border-radius:var(--radius-sm);border:1px solid var(--border-light)">
+          <div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.04em;">Lot Rate Range</div>
+          <div style="font-size:17px;font-weight:800;color:var(--text-1);margin-top:2px;">${rateLabel} <span style="font-size:11px;font-weight:600;color:var(--text-3)">/ KG</span></div>
+        </div>
+        <div style="padding:10px 14px;background:var(--surface-1);border-radius:var(--radius-sm);border:1px solid var(--border-light)">
+          <div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.04em;">Produce Line</div>
+          <div style="font-size:16px;font-weight:700;color:var(--text-1);margin-top:4px;"><span class="badge badge-neutral">${category}</span></div>
+        </div>
+        <div style="padding:10px 14px;background:var(--surface-1);border-radius:var(--radius-sm);border:1px solid var(--border-light)">
+          <div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.04em;">Last Procurement</div>
+          <div style="font-size:15px;font-weight:700;color:var(--text-2);margin-top:4px;">${lastDate ? RT.fmtDate(lastDate) : 'No transactions'}</div>
+        </div>
+      `;
+    }
+
+    // ── LOTS COUNT BADGE ──────────────────────────────────────────────────
+    if (lotsCountEl) {
+      lotsCountEl.textContent = `${rawPurchases.length} Lot${rawPurchases.length === 1 ? '' : 's'}`;
+    }
+
+    // ── LOTS TABLE ────────────────────────────────────────────────────────
+    if (lotsTbody) {
+      if (rawPurchases.length === 0) {
+        lotsTbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--text-3);font-size:13px;">No procurement lots recorded yet for this supplier.</td></tr>`;
+      } else {
+        lotsTbody.innerHTML = rawPurchases.slice().reverse().map(p => {
+          const prod     = RT.getProductById(p.productId);
+          const prodName = p.productName || (prod ? prod.name : 'Produce');
+          const unit     = (prod ? prod.unit : null) || 'KG';
+          const rate     = p.rate || (p.quantity > 0 ? (p.totalCost / p.quantity) : 0);
+          return `<tr>
+            <td>${RT.fmtDate(p.date)}</td>
+            <td class="col-mono" style="font-weight:700;color:var(--primary)">${p.id || p.lotId || '—'}</td>
+            <td class="col-primary">${prodName}</td>
+            <td class="num">${RT.fmtNum(p.quantity)} ${unit}</td>
+            <td class="num">${RT.fmt(rate, 2)}</td>
+            <td class="num col-amount" style="font-weight:700">${RT.fmt(p.totalCost)}</td>
+            <td><span class="badge badge-neutral" style="font-size:10px;">${p.payment || p.paymentMode || 'Direct'}</span></td>
+          </tr>`;
+        }).join('');
+      }
+    }
+
+    // ── CHART ─────────────────────────────────────────────────────────────
+    if (rawPurchases.length === 0) {
+      destroyChart(canvasId);
+      if (emptyEl) emptyEl.style.display = 'flex';
+      canvas.style.display = 'none';
+      return;
+    }
+
+    if (emptyEl) emptyEl.style.display = 'none';
+    canvas.style.display = 'block';
+
+    // ── DISCRETE LOT BATCHES (NO SAME-DAY DATE COLLAPSE) ───────────────────
+    const lotLabels = rawPurchases.map(p => {
+      const lotNum = p.id || p.lotId || 'Lot';
+      const dateText = p.date ? RT.fmtDate(p.date) : '';
+      return [`Lot #${lotNum}`, dateText];
+    });
+    const costData = rawPurchases.map(p => Number(p.totalCost || 0));
+    const qtyData  = rawPurchases.map(p => Number(p.quantity || 0));
+
+    createChart(canvasId, {
+      data: {
+        labels: lotLabels,
+        datasets: [
+          {
+            type: 'bar',
+            label: 'Procurement Spend (\u20b9)',
+            data: costData,
+            backgroundColor: '#1A3262',
+            hoverBackgroundColor: '#284B8C',
+            borderRadius: { topLeft: 6, topRight: 6, bottomLeft: 0, bottomRight: 0 },
+            borderSkipped: false,
+            maxBarThickness: 52,
+            categoryPercentage: 0.65,
+            barPercentage: 0.85,
+            yAxisID: 'yCost',
+            order: 1,
+          },
+          {
+            type: 'bar',
+            label: 'Quantity Sourced (KG)',
+            data: qtyData,
+            backgroundColor: '#059669',
+            hoverBackgroundColor: '#10B981',
+            borderRadius: { topLeft: 6, topRight: 6, bottomLeft: 0, bottomRight: 0 },
+            borderSkipped: false,
+            maxBarThickness: 52,
+            categoryPercentage: 0.65,
+            barPercentage: 0.85,
+            yAxisID: 'yQty',
+            order: 2,
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        scales: {
+          x: {
+            grid: GRID,
+            ticks: {
+              ...TICK,
+              font: { family: "'Inter', sans-serif", size: 11, weight: '600' }
+            }
+          },
+          yCost: {
+            type: 'linear',
+            position: 'left',
+            grid: GRID,
+            ticks: { ...TICK, callback: v => RT.fmt(v) },
+            title: { display: true, text: 'Spend (\u20b9)', color: '#1A3262', font: { family: "'Inter', sans-serif", size: 11, weight: '700' } }
+          },
+          yQty: {
+            type: 'linear',
+            position: 'right',
+            grid: { drawOnChartArea: false },
+            ticks: { ...TICK, callback: v => `${RT.fmtNum(v)} KG` },
+            title: { display: true, text: 'Volume (KG)', color: '#059669', font: { family: "'Inter', sans-serif", size: 11, weight: '700' } }
+          }
+        },
+        plugins: {
+          legend: {
+            display: true, position: 'top', align: 'end',
+            labels: {
+              boxWidth: 14,
+              boxHeight: 10,
+              borderRadius: 3,
+              usePointStyle: false,
+              font: { family: "'Inter', sans-serif", size: 11, weight: '600' },
+              color: '#374151',
+              padding: 16
+            }
+          },
+          tooltip: {
+            ...TOOLTIP,
+            padding: 12,
+            callbacks: {
+              title: items => {
+                const idx = items[0].dataIndex;
+                const p = rawPurchases[idx];
+                return p ? `Lot #${p.id || p.lotId} · ${RT.fmtDate(p.date)}` : items[0].label;
+              },
+              afterTitle: items => {
+                const idx = items[0].dataIndex;
+                const p = rawPurchases[idx];
+                if (!p) return '';
+                const rate = p.rate || (p.quantity > 0 ? (p.totalCost / p.quantity) : 0);
+                return `Acquisition Rate: ${RT.fmt(rate, 2)} / KG`;
+              },
+              label: ctx => ctx.dataset.yAxisID === 'yCost'
+                ? ` Sourced Spend: ${RT.fmt(ctx.parsed.y)}`
+                : ` Physical Volume: ${RT.fmtNum(ctx.parsed.y)} KG`
+            }
+          }
+        }
+      }
+    });
+  }
+
+  /* ══════════════════════════════════════════════
      INIT
      ══════════════════════════════════════════════ */
   function init() {
@@ -685,6 +934,9 @@ const Charts = (() => {
     renderPLChart,
     renderExpenseByCategory,
     renderStockPageDonut,
+    renderSupplierHistory,
   };
 
 })();
+
+window.Charts = Charts;

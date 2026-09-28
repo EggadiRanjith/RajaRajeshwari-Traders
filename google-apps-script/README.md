@@ -162,8 +162,8 @@ Paste the Web App URL into your web application's settings. The app will use thi
 | Key | Value |
 |-----|-------|
 | Business Name | RajaRajeshwari Traders |
-| Owner | R. Venkatesh |
-| Location | Hosur, Tamil Nadu |
+| Owner | Budime Aravind |
+| Location | Huzurabad, Telangana |
 | Currency | ₹ |
 | Unit | KG |
 | Credit Policy | ZERO CREDIT — All transactions paid at receipt |
