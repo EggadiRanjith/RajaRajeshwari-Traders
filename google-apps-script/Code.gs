@@ -1,13 +1,19 @@
 /**
  * ==============================================================================
  * RAJARAJESHWARI TRADERS — GOOGLE SHEETS DATABASE BACKEND
- * Google Apps Script (Code.gs) v2.0
+ * Google Apps Script (Code.gs) v3.0
  *
  * Schema: Lot-Based Inventory Tracking, Zero-Credit Policy,
  *         Customer Segmentation (Walk-in / Shopkeeper / Hotel),
  *         Wastage & Spoilage Ledger, Multi-Dimensional P&L Engine.
  *
  * Products: White Onion, Red Onion, Garlic, Ginger, Potato (5 fixed items)
+ *
+ * v3.0 Changes:
+ *   - getAllData(): consolidated single-call endpoint (replaces 8 parallel calls)
+ *   - GAS CacheService: 5-minute server-side cache on getAllData
+ *   - _invalidateDataCache(): called by all write functions to keep cache fresh
+ *   - Private _parseXxx() helpers decouple row parsing from sheet fetching
  *
  * SETUP:
  * 1. Open Google Sheet → Extensions → Apps Script
@@ -35,6 +41,10 @@ const SHEET_NAMES = {
   SETTINGS:  'SETTINGS'
 };
 
+/* GAS CacheService key for consolidated getAllData bundle */
+const GAS_CACHE_KEY  = 'rrt_all_data_v3';
+const GAS_CACHE_TTL  = 300; // 5 minutes in seconds
+
 /* ══════════════════════════════════════════════════
    HTTP REQUEST HANDLERS
    ══════════════════════════════════════════════════ */
@@ -52,7 +62,7 @@ function doGet(e) {
           store: 'RajaRajeshwari Traders',
           owner: 'Budime Aravind',
           location: 'Huzurabad, Telangana',
-          version: '2.0',
+          version: '3.0',
           settings: getSettings()
         };
         break;
@@ -82,6 +92,10 @@ function doGet(e) {
         break;
       case 'getExpenses':
         result = getExpenses(e.parameter.filter, e.parameter.from, e.parameter.to);
+        break;
+      /* ── NEW v3.0: Consolidated single-call endpoint ── */
+      case 'getAllData':
+        result = getAllData();
         break;
       case 'getDashboardData':
         result = getDashboardData(e.parameter.filter || 'today', e.parameter.from, e.parameter.to);
@@ -246,138 +260,32 @@ function stockStatus(currentStock, threshold) {
 }
 
 /* ══════════════════════════════════════════════════
-   WORKBOOK INITIALIZATION
-   Run this ONCE after pasting the script.
+   CACHE MANAGEMENT (GAS CacheService)
    ══════════════════════════════════════════════════ */
 
-function initWorkbookSheets() {
-  const HEADER_BG = '#1a1a2e';
-  const HEADER_FG = '#ffffff';
-
-  // ── PRODUCTS ──
-  // Columns: Product ID | Product Name | Category | Unit | Reorder Level | Active
-  const prodSheet = getSheet(SHEET_NAMES.PRODUCTS);
-  if (prodSheet.getLastRow() === 0) {
-    prodSheet.appendRow(['Product ID', 'Product Name', 'Category', 'Unit', 'Reorder Level', 'Active']);
-    prodSheet.getRange(1, 1, 1, 6).setFontWeight('bold').setBackground(HEADER_BG).setFontColor(HEADER_FG);
-    const products = [
-      ['PRD-001', 'White Onion', 'Onion',     'KG', 50, 'TRUE'],
-      ['PRD-002', 'Red Onion',   'Onion',     'KG', 50, 'TRUE'],
-      ['PRD-003', 'Garlic',      'Spice',     'KG', 20, 'TRUE'],
-      ['PRD-004', 'Ginger',      'Spice',     'KG', 25, 'TRUE'],
-      ['PRD-005', 'Potato',      'Vegetable', 'KG', 40, 'TRUE']
-    ];
-    prodSheet.getRange(2, 1, products.length, 6).setValues(products);
-    prodSheet.setTabColor('#34a853');
+/**
+ * Invalidate the GAS-side getAllData cache.
+ * MUST be called at the end of every write function so the next read
+ * fetches fresh data from Google Sheets instead of a stale cached bundle.
+ */
+function _invalidateDataCache() {
+  try {
+    CacheService.getScriptCache().remove(GAS_CACHE_KEY);
+  } catch (e) {
+    // Non-critical — next read will fetch fresh data on TTL expiry anyway
+    console.warn('Cache invalidation failed:', e.message);
   }
-
-  // ── STOCK ──
-  // Columns: Product ID | Product Name | Category | Unit | Opening Stock | Purchased | Sold | Wasted | Adjusted | Current Stock | Average Cost | Stock Value | Reorder Level | Status
-  const stockSheet = getSheet(SHEET_NAMES.STOCK);
-  if (stockSheet.getLastRow() === 0) {
-    stockSheet.appendRow([
-      'Product ID', 'Product Name', 'Category', 'Unit',
-      'Opening Stock', 'Purchased', 'Sold', 'Wasted', 'Adjusted',
-      'Current Stock', 'Average Cost', 'Stock Value', 'Reorder Level', 'Status'
-    ]);
-    stockSheet.getRange(1, 1, 1, 14).setFontWeight('bold').setBackground(HEADER_BG).setFontColor(HEADER_FG);
-    const stock = [
-      ['PRD-001', 'White Onion', 'Onion',     'KG', 0, 0, 0, 0, 0, 0, 0, 0, 50, 'OUT OF STOCK'],
-      ['PRD-002', 'Red Onion',   'Onion',     'KG', 0, 0, 0, 0, 0, 0, 0, 0, 50, 'OUT OF STOCK'],
-      ['PRD-003', 'Garlic',      'Spice',     'KG', 0, 0, 0, 0, 0, 0, 0, 0, 20, 'OUT OF STOCK'],
-      ['PRD-004', 'Ginger',      'Spice',     'KG', 0, 0, 0, 0, 0, 0, 0, 0, 25, 'OUT OF STOCK'],
-      ['PRD-005', 'Potato',      'Vegetable', 'KG', 0, 0, 0, 0, 0, 0, 0, 0, 40, 'OUT OF STOCK']
-    ];
-    stockSheet.getRange(2, 1, stock.length, 14).setValues(stock);
-    stockSheet.setTabColor('#4285f4');
-  }
-
-  // ── SUPPLIERS ──
-  // Columns: Supplier ID | Supplier Name | Phone | Location | Supply Category | Status
-  const supSheet = getSheet(SHEET_NAMES.SUPPLIERS);
-  if (supSheet.getLastRow() === 0) {
-    supSheet.appendRow(['Supplier ID', 'Supplier Name', 'Phone', 'Location', 'Supply Category', 'Status']);
-    supSheet.getRange(1, 1, 1, 6).setFontWeight('bold').setBackground(HEADER_BG).setFontColor(HEADER_FG);
-    supSheet.setTabColor('#4285f4');
-  }
-
-  // ── PURCHASES (Lot Intake Ledger) ──
-  // Columns: Lot ID | Date | Supplier ID | Supplier Name | Product ID | Product Name | Total Qty | Total Cost | Unit Cost | Target Rate | Remaining Qty | Payment Mode | Payment Status
-  const purSheet = getSheet(SHEET_NAMES.PURCHASES);
-  if (purSheet.getLastRow() === 0) {
-    purSheet.appendRow([
-      'Lot ID', 'Date', 'Supplier ID', 'Supplier Name',
-      'Product ID', 'Product Name', 'Total Qty', 'Total Cost',
-      'Unit Cost', 'Target Rate', 'Remaining Qty',
-      'Payment Mode', 'Payment Status'
-    ]);
-    purSheet.getRange(1, 1, 1, 13).setFontWeight('bold').setBackground(HEADER_BG).setFontColor(HEADER_FG);
-    purSheet.setTabColor('#f29900');
-  }
-
-  // ── SALES (Counter Billing Ledger) ──
-  // Columns: Invoice ID | Date | Product ID | Product Name | Lot ID | Supplier ID | Supplier Name | Sold Qty | Selling Rate | Target Rate | Revenue | COGS | Gross Profit | Customer Type | Buyer | Payment Mode | Payment Status
-  const salesSheet = getSheet(SHEET_NAMES.SALES);
-  if (salesSheet.getLastRow() === 0) {
-    salesSheet.appendRow([
-      'Invoice ID', 'Date', 'Product ID', 'Product Name',
-      'Lot ID', 'Supplier ID', 'Supplier Name',
-      'Sold Qty', 'Selling Rate', 'Target Rate',
-      'Revenue', 'COGS', 'Gross Profit',
-      'Customer Type', 'Buyer', 'Payment Mode', 'Payment Status'
-    ]);
-    salesSheet.getRange(1, 1, 1, 17).setFontWeight('bold').setBackground(HEADER_BG).setFontColor(HEADER_FG);
-    salesSheet.setTabColor('#0d9488');
-  }
-
-  // ── WASTAGE (Spoilage & Loss Ledger) ──
-  // Columns: Wastage ID | Date | Product ID | Product Name | Lot ID | Supplier ID | Wasted Qty | Unit Cost | Loss Amount | Reason | Notes
-  const wastSheet = getSheet(SHEET_NAMES.WASTAGE);
-  if (wastSheet.getLastRow() === 0) {
-    wastSheet.appendRow([
-      'Wastage ID', 'Date', 'Product ID', 'Product Name',
-      'Lot ID', 'Supplier ID', 'Wasted Qty', 'Unit Cost',
-      'Loss Amount', 'Reason', 'Notes'
-    ]);
-    wastSheet.getRange(1, 1, 1, 11).setFontWeight('bold').setBackground(HEADER_BG).setFontColor(HEADER_FG);
-    wastSheet.setTabColor('#dc2626');
-  }
-
-  // ── EXPENSES ──
-  // Columns: Expense ID | Date | Category | Description | Amount | Payment Mode | Paid To
-  const expSheet = getSheet(SHEET_NAMES.EXPENSES);
-  if (expSheet.getLastRow() === 0) {
-    expSheet.appendRow(['Expense ID', 'Date', 'Category', 'Description', 'Amount', 'Payment Mode', 'Paid To']);
-    expSheet.getRange(1, 1, 1, 7).setFontWeight('bold').setBackground(HEADER_BG).setFontColor(HEADER_FG);
-    expSheet.setTabColor('#7c3aed');
-  }
-
-  // ── SETTINGS ──
-  const setSheet = getSheet(SHEET_NAMES.SETTINGS);
-  if (setSheet.getLastRow() === 0) {
-    setSheet.appendRow(['Key', 'Value']);
-    setSheet.getRange(1, 1, 1, 2).setFontWeight('bold').setBackground(HEADER_BG).setFontColor(HEADER_FG);
-    setSheet.appendRow(['Business Name', 'RajaRajeshwari Traders']);
-    setSheet.appendRow(['Owner', 'Budime Aravind']);
-    setSheet.appendRow(['Location', 'Huzurabad, Telangana']);
-    setSheet.appendRow(['Currency', '₹']);
-    setSheet.appendRow(['Unit', 'KG']);
-    setSheet.appendRow(['Credit Policy', 'ZERO CREDIT — All transactions paid at receipt']);
-    setSheet.appendRow(['Version', '2.0']);
-    setSheet.setTabColor('#6b7280');
-  }
-
-  SpreadsheetApp.getUi().alert('All 8 sheets initialized. RajaRajeshwari Traders database is ready.');
 }
 
 /* ══════════════════════════════════════════════════
-   GET — READ FUNCTIONS
+   PRIVATE ROW-PARSING HELPERS
+   These receive pre-fetched row arrays and return normalised objects.
+   Decoupling parsing from sheet access lets getAllData() read once and
+   call multiple parsers, while individual getXxx() functions retain their
+   existing interface by fetching rows themselves.
    ══════════════════════════════════════════════════ */
 
-/** Get application settings from SETTINGS sheet */
-function getSettings() {
-  const sheet = getSheet(SHEET_NAMES.SETTINGS);
-  const rows = sheet.getDataRange().getValues();
+function _parseSettings(rows) {
   const settings = {
     'Business Name': 'RajaRajeshwari Traders',
     'Owner': 'Budime Aravind',
@@ -385,7 +293,7 @@ function getSettings() {
     'Currency': '₹',
     'Unit': 'KG',
     'Credit Policy': 'ZERO CREDIT — All transactions paid at receipt',
-    'Version': '2.0'
+    'Version': '3.0'
   };
   if (rows.length > 1) {
     for (let i = 1; i < rows.length; i++) {
@@ -397,12 +305,8 @@ function getSettings() {
   return settings;
 }
 
-/** Get all active products */
-function getProducts() {
-  const sheet = getSheet(SHEET_NAMES.PRODUCTS);
-  const rows = sheet.getDataRange().getValues();
+function _parseProducts(rows) {
   if (rows.length <= 1) return [];
-
   const products = [];
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
@@ -419,17 +323,8 @@ function getProducts() {
   return products;
 }
 
-/** Get current stock levels for all products */
-function getStock() {
-  const sheet = getSheet(SHEET_NAMES.STOCK);
-  const rows = sheet.getDataRange().getValues();
+function _parseStock(rows) {
   if (rows.length <= 1) return [];
-
-  // STOCK col indices (0-based):
-  // 0:ProductID 1:Name 2:Category 3:Unit 4:OpeningStock 5:Purchased
-  // 6:Sold 7:Wasted 8:Adjusted 9:CurrentStock 10:AvgCost
-  // 11:StockValue 12:ReorderLevel 13:Status
-
   const stockList = [];
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
@@ -437,7 +332,6 @@ function getStock() {
     const currentStock = Number(row[9] || 0);
     const avgCost = Number(row[10] || 0);
     const threshold = Number(row[12] || 0);
-
     stockList.push({
       productId:    String(row[0]).trim(),
       productName:  String(row[1]).trim(),
@@ -458,30 +352,29 @@ function getStock() {
   return stockList;
 }
 
-/** Get all suppliers with aggregated purchase totals */
-function getSuppliers() {
-  const sheet = getSheet(SHEET_NAMES.SUPPLIERS);
-  const rows = sheet.getDataRange().getValues();
-  if (rows.length <= 1) return [];
+/**
+ * Parse suppliers — requires both supplier rows AND purchase rows
+ * to compute totalPurchases per supplier in a single pass.
+ */
+function _parseSuppliersRaw(supRows, purRows) {
+  if (supRows.length <= 1) return [];
 
-  // Aggregate total purchases per supplier
-  const purSheet = getSheet(SHEET_NAMES.PURCHASES);
-  const purRows = purSheet.getDataRange().getValues();
+  // Aggregate total purchases per supplier from purchase rows
   const totalsBySupplier = {};
-  for (let i = 1; i < purRows.length; i++) {
-    const supId = String(purRows[i][2] || '').trim();
-    if (supId) {
-      totalsBySupplier[supId] = (totalsBySupplier[supId] || 0) + Number(purRows[i][7] || 0);
+  if (purRows.length > 1) {
+    for (let i = 1; i < purRows.length; i++) {
+      const supId = String(purRows[i][2] || '').trim();
+      if (supId) {
+        totalsBySupplier[supId] = (totalsBySupplier[supId] || 0) + Number(purRows[i][7] || 0);
+      }
     }
   }
 
-  // SUPPLIERS col indices: 0:ID 1:Name 2:Phone 3:Location 4:SupplyCategory 5:Status
   const suppliers = [];
-  for (let i = 1; i < rows.length; i++) {
-    const row = rows[i];
+  for (let i = 1; i < supRows.length; i++) {
+    const row = supRows[i];
     if (!row[0]) continue;
     const supId = String(row[0]).trim();
-
     suppliers.push({
       id:             supId,
       name:           String(row[1]).trim(),
@@ -496,17 +389,8 @@ function getSuppliers() {
   return suppliers;
 }
 
-/** Get all purchase lots */
-function getPurchases() {
-  const sheet = getSheet(SHEET_NAMES.PURCHASES);
-  const rows = sheet.getDataRange().getValues();
+function _parsePurchases(rows) {
   if (rows.length <= 1) return [];
-
-  // PURCHASES col indices:
-  // 0:LotID 1:Date 2:SupplierID 3:SupplierName 4:ProductID 5:ProductName
-  // 6:TotalQty 7:TotalCost 8:UnitCost 9:TargetRate 10:RemainingQty
-  // 11:PaymentMode 12:PaymentStatus
-
   const purchases = [];
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
@@ -531,35 +415,332 @@ function getPurchases() {
   return purchases;
 }
 
+/** Parse ALL sales rows (no date filter — filtering happens client-side) */
+function _parseSalesAll(rows) {
+  if (rows.length <= 1) return [];
+  const sales = [];
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    if (!row[0]) continue;
+    sales.push({
+      id:           String(row[0]).trim(),
+      date:         fmtDate(row[1]),
+      productId:    String(row[2]).trim(),
+      productName:  String(row[3]).trim(),
+      lotId:        String(row[4]).trim(),
+      supplierId:   String(row[5]).trim(),
+      supplierName: String(row[6]).trim(),
+      quantity:     Number(row[7] || 0),
+      rate:         Number(row[8] || 0),
+      targetRate:   Number(row[9] || 0),
+      revenue:      Number(row[10] || 0),
+      cogs:         Number(row[11] || 0),
+      grossProfit:  Number(row[12] || 0),
+      customerType: String(row[13] || 'Walk-in').trim(),
+      buyer:        String(row[14] || 'Walk-in').trim(),
+      payment:      String(row[15] || 'Cash').trim(),
+      status:       'paid'
+    });
+  }
+  return sales;
+}
+
+/** Parse ALL expense rows (no date filter) */
+function _parseExpensesAll(rows) {
+  if (rows.length <= 1) return [];
+  const expenses = [];
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    if (!row[0]) continue;
+    expenses.push({
+      id:          String(row[0]).trim(),
+      date:        fmtDate(row[1]),
+      category:    String(row[2] || '').trim(),
+      description: String(row[3] || '').trim(),
+      amount:      Number(row[4] || 0),
+      paidBy:      String(row[5] || 'Cash').trim(),
+      paidTo:      String(row[6] || '').trim()
+    });
+  }
+  return expenses;
+}
+
+/** Parse ALL wastage rows (no date filter) */
+function _parseWastageAll(rows) {
+  if (rows.length <= 1) return [];
+  const wastage = [];
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    if (!row[0]) continue;
+    wastage.push({
+      id:          String(row[0]).trim(),
+      wastageId:   String(row[0]).trim(),
+      date:        fmtDate(row[1]),
+      productId:   String(row[2]).trim(),
+      productName: String(row[3]).trim(),
+      lotId:       String(row[4]).trim(),
+      supplierId:  String(row[5]).trim(),
+      quantity:    Number(row[6] || 0),
+      wastedQty:   Number(row[6] || 0),
+      unitCost:    Number(row[7] || 0),
+      lossAmount:  Number(row[8] || 0),
+      reason:      String(row[9] || '').trim(),
+      notes:       String(row[10] || '').trim()
+    });
+  }
+  return wastage;
+}
+
+/* ══════════════════════════════════════════════════
+   CONSOLIDATED READ ENDPOINT (v3.0 — FAST PATH)
+   ══════════════════════════════════════════════════ */
+
+/**
+ * getAllData() — returns ALL spreadsheet data in a single GAS execution.
+ *
+ * Uses CacheService to serve repeat requests in <100ms.
+ * Cache is invalidated by _invalidateDataCache() after every write.
+ *
+ * The frontend (data.js) calls this as the primary GET path.
+ * If it fails, data.js falls back to the old 8-call parallel approach.
+ */
+function getAllData() {
+  // Try GAS-side cache first
+  try {
+    const cache = CacheService.getScriptCache();
+    const cached = cache.get(GAS_CACHE_KEY);
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (parsed && parsed._ts) {
+        parsed._fromCache = true;
+        return parsed;
+      }
+    }
+  } catch (cacheErr) {
+    // Cache miss or corrupt — fall through to fresh read
+    console.warn('getAllData cache read failed:', cacheErr.message);
+  }
+
+  // Fresh read: open all sheets, read all data ranges
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+
+  const settingsSheet  = ss.getSheetByName(SHEET_NAMES.SETTINGS)  || ss.insertSheet(SHEET_NAMES.SETTINGS);
+  const productSheet   = ss.getSheetByName(SHEET_NAMES.PRODUCTS)  || ss.insertSheet(SHEET_NAMES.PRODUCTS);
+  const stockSheet     = ss.getSheetByName(SHEET_NAMES.STOCK)     || ss.insertSheet(SHEET_NAMES.STOCK);
+  const supplierSheet  = ss.getSheetByName(SHEET_NAMES.SUPPLIERS) || ss.insertSheet(SHEET_NAMES.SUPPLIERS);
+  const purchaseSheet  = ss.getSheetByName(SHEET_NAMES.PURCHASES) || ss.insertSheet(SHEET_NAMES.PURCHASES);
+  const salesSheet     = ss.getSheetByName(SHEET_NAMES.SALES)     || ss.insertSheet(SHEET_NAMES.SALES);
+  const expenseSheet   = ss.getSheetByName(SHEET_NAMES.EXPENSES)  || ss.insertSheet(SHEET_NAMES.EXPENSES);
+  const wastageSheet   = ss.getSheetByName(SHEET_NAMES.WASTAGE)   || ss.insertSheet(SHEET_NAMES.WASTAGE);
+
+  // Read all raw row arrays once
+  const settingsRows  = settingsSheet.getDataRange().getValues();
+  const productRows   = productSheet.getDataRange().getValues();
+  const stockRows     = stockSheet.getDataRange().getValues();
+  const supplierRows  = supplierSheet.getDataRange().getValues();
+  const purchaseRows  = purchaseSheet.getDataRange().getValues();
+  const salesRows     = salesSheet.getDataRange().getValues();
+  const expenseRows   = expenseSheet.getDataRange().getValues();
+  const wastageRows   = wastageSheet.getDataRange().getValues();
+
+  const result = {
+    settings:    _parseSettings(settingsRows),
+    products:    _parseProducts(productRows),
+    stock:       _parseStock(stockRows),
+    suppliers:   _parseSuppliersRaw(supplierRows, purchaseRows),
+    purchases:   _parsePurchases(purchaseRows),
+    sales:       _parseSalesAll(salesRows),
+    expenses:    _parseExpensesAll(expenseRows),
+    wastage:     _parseWastageAll(wastageRows),
+    _ts:         new Date().toISOString(),
+    _fromCache:  false
+  };
+
+  // Store in CacheService (5-min TTL)
+  // CacheService has a 100KB per-key limit — only cache if under limit
+  try {
+    const payload = JSON.stringify(result);
+    if (payload.length < 95000) {
+      CacheService.getScriptCache().put(GAS_CACHE_KEY, payload, GAS_CACHE_TTL);
+    }
+    // If payload > 95KB, we skip caching (data is too large for CacheService)
+    // The frontend still gets the data; it just won't be cached server-side
+  } catch (cacheWriteErr) {
+    console.warn('getAllData cache write failed (non-critical):', cacheWriteErr.message);
+  }
+
+  return result;
+}
+
+/* ══════════════════════════════════════════════════
+   WORKBOOK INITIALIZATION
+   Run this ONCE after pasting the script.
+   ══════════════════════════════════════════════════ */
+
+function initWorkbookSheets() {
+  const HEADER_BG = '#1a1a2e';
+  const HEADER_FG = '#ffffff';
+
+  // ── PRODUCTS ──
+  const prodSheet = getSheet(SHEET_NAMES.PRODUCTS);
+  if (prodSheet.getLastRow() === 0) {
+    prodSheet.appendRow(['Product ID', 'Product Name', 'Category', 'Unit', 'Reorder Level', 'Active']);
+    prodSheet.getRange(1, 1, 1, 6).setFontWeight('bold').setBackground(HEADER_BG).setFontColor(HEADER_FG);
+    const products = [
+      ['PRD-001', 'White Onion', 'Onion',     'KG', 50, 'TRUE'],
+      ['PRD-002', 'Red Onion',   'Onion',     'KG', 50, 'TRUE'],
+      ['PRD-003', 'Garlic',      'Spice',     'KG', 20, 'TRUE'],
+      ['PRD-004', 'Ginger',      'Spice',     'KG', 25, 'TRUE'],
+      ['PRD-005', 'Potato',      'Vegetable', 'KG', 40, 'TRUE']
+    ];
+    prodSheet.getRange(2, 1, products.length, 6).setValues(products);
+    prodSheet.setTabColor('#34a853');
+  }
+
+  // ── STOCK ──
+  const stockSheet = getSheet(SHEET_NAMES.STOCK);
+  if (stockSheet.getLastRow() === 0) {
+    stockSheet.appendRow([
+      'Product ID', 'Product Name', 'Category', 'Unit',
+      'Opening Stock', 'Purchased', 'Sold', 'Wasted', 'Adjusted',
+      'Current Stock', 'Average Cost', 'Stock Value', 'Reorder Level', 'Status'
+    ]);
+    stockSheet.getRange(1, 1, 1, 14).setFontWeight('bold').setBackground(HEADER_BG).setFontColor(HEADER_FG);
+    const stock = [
+      ['PRD-001', 'White Onion', 'Onion',     'KG', 0, 0, 0, 0, 0, 0, 0, 0, 50, 'OUT OF STOCK'],
+      ['PRD-002', 'Red Onion',   'Onion',     'KG', 0, 0, 0, 0, 0, 0, 0, 0, 50, 'OUT OF STOCK'],
+      ['PRD-003', 'Garlic',      'Spice',     'KG', 0, 0, 0, 0, 0, 0, 0, 0, 20, 'OUT OF STOCK'],
+      ['PRD-004', 'Ginger',      'Spice',     'KG', 0, 0, 0, 0, 0, 0, 0, 0, 25, 'OUT OF STOCK'],
+      ['PRD-005', 'Potato',      'Vegetable', 'KG', 0, 0, 0, 0, 0, 0, 0, 0, 40, 'OUT OF STOCK']
+    ];
+    stockSheet.getRange(2, 1, stock.length, 14).setValues(stock);
+    stockSheet.setTabColor('#4285f4');
+  }
+
+  // ── SUPPLIERS ──
+  const supSheet = getSheet(SHEET_NAMES.SUPPLIERS);
+  if (supSheet.getLastRow() === 0) {
+    supSheet.appendRow(['Supplier ID', 'Supplier Name', 'Phone', 'Location', 'Supply Category', 'Status']);
+    supSheet.getRange(1, 1, 1, 6).setFontWeight('bold').setBackground(HEADER_BG).setFontColor(HEADER_FG);
+    supSheet.setTabColor('#4285f4');
+  }
+
+  // ── PURCHASES ──
+  const purSheet = getSheet(SHEET_NAMES.PURCHASES);
+  if (purSheet.getLastRow() === 0) {
+    purSheet.appendRow([
+      'Lot ID', 'Date', 'Supplier ID', 'Supplier Name',
+      'Product ID', 'Product Name', 'Total Qty', 'Total Cost',
+      'Unit Cost', 'Target Rate', 'Remaining Qty',
+      'Payment Mode', 'Payment Status'
+    ]);
+    purSheet.getRange(1, 1, 1, 13).setFontWeight('bold').setBackground(HEADER_BG).setFontColor(HEADER_FG);
+    purSheet.setTabColor('#f29900');
+  }
+
+  // ── SALES ──
+  const salesSheet = getSheet(SHEET_NAMES.SALES);
+  if (salesSheet.getLastRow() === 0) {
+    salesSheet.appendRow([
+      'Invoice ID', 'Date', 'Product ID', 'Product Name',
+      'Lot ID', 'Supplier ID', 'Supplier Name',
+      'Sold Qty', 'Selling Rate', 'Target Rate',
+      'Revenue', 'COGS', 'Gross Profit',
+      'Customer Type', 'Buyer', 'Payment Mode', 'Payment Status'
+    ]);
+    salesSheet.getRange(1, 1, 1, 17).setFontWeight('bold').setBackground(HEADER_BG).setFontColor(HEADER_FG);
+    salesSheet.setTabColor('#0d9488');
+  }
+
+  // ── WASTAGE ──
+  const wastSheet = getSheet(SHEET_NAMES.WASTAGE);
+  if (wastSheet.getLastRow() === 0) {
+    wastSheet.appendRow([
+      'Wastage ID', 'Date', 'Product ID', 'Product Name',
+      'Lot ID', 'Supplier ID', 'Wasted Qty', 'Unit Cost',
+      'Loss Amount', 'Reason', 'Notes'
+    ]);
+    wastSheet.getRange(1, 1, 1, 11).setFontWeight('bold').setBackground(HEADER_BG).setFontColor(HEADER_FG);
+    wastSheet.setTabColor('#dc2626');
+  }
+
+  // ── EXPENSES ──
+  const expSheet = getSheet(SHEET_NAMES.EXPENSES);
+  if (expSheet.getLastRow() === 0) {
+    expSheet.appendRow(['Expense ID', 'Date', 'Category', 'Description', 'Amount', 'Payment Mode', 'Paid To']);
+    expSheet.getRange(1, 1, 1, 7).setFontWeight('bold').setBackground(HEADER_BG).setFontColor(HEADER_FG);
+    expSheet.setTabColor('#7c3aed');
+  }
+
+  // ── SETTINGS ──
+  const setSheet = getSheet(SHEET_NAMES.SETTINGS);
+  if (setSheet.getLastRow() === 0) {
+    setSheet.appendRow(['Key', 'Value']);
+    setSheet.getRange(1, 1, 1, 2).setFontWeight('bold').setBackground(HEADER_BG).setFontColor(HEADER_FG);
+    setSheet.appendRow(['Business Name', 'RajaRajeshwari Traders']);
+    setSheet.appendRow(['Owner', 'Budime Aravind']);
+    setSheet.appendRow(['Location', 'Huzurabad, Telangana']);
+    setSheet.appendRow(['Currency', '₹']);
+    setSheet.appendRow(['Unit', 'KG']);
+    setSheet.appendRow(['Credit Policy', 'ZERO CREDIT — All transactions paid at receipt']);
+    setSheet.appendRow(['Version', '3.0']);
+    setSheet.setTabColor('#6b7280');
+  }
+
+  SpreadsheetApp.getUi().alert('All 8 sheets initialized. RajaRajeshwari Traders database is ready.');
+}
+
+/* ══════════════════════════════════════════════════
+   GET — READ FUNCTIONS (wrap private parse helpers)
+   ══════════════════════════════════════════════════ */
+
+/** Get application settings from SETTINGS sheet */
+function getSettings() {
+  return _parseSettings(getSheet(SHEET_NAMES.SETTINGS).getDataRange().getValues());
+}
+
+/** Get all active products */
+function getProducts() {
+  return _parseProducts(getSheet(SHEET_NAMES.PRODUCTS).getDataRange().getValues());
+}
+
+/** Get current stock levels for all products */
+function getStock() {
+  return _parseStock(getSheet(SHEET_NAMES.STOCK).getDataRange().getValues());
+}
+
+/** Get all suppliers with aggregated purchase totals */
+function getSuppliers() {
+  return _parseSuppliersRaw(
+    getSheet(SHEET_NAMES.SUPPLIERS).getDataRange().getValues(),
+    getSheet(SHEET_NAMES.PURCHASES).getDataRange().getValues()
+  );
+}
+
+/** Get all purchase lots */
+function getPurchases() {
+  return _parsePurchases(getSheet(SHEET_NAMES.PURCHASES).getDataRange().getValues());
+}
+
 /** Get active lots with remaining qty > 0 for a specific product */
 function getActiveLots(productId) {
   if (!productId) return [];
-  const purchases = getPurchases();
-  return purchases
+  return getPurchases()
     .filter(function(p) { return p.productId === productId && p.remainingQty > 0; })
     .sort(function(a, b) { return b.date.localeCompare(a.date); });
 }
 
 /** Get sales, optionally filtered by period */
 function getSales(filter, from, to) {
-  const sheet = getSheet(SHEET_NAMES.SALES);
-  const rows = sheet.getDataRange().getValues();
+  const rows = getSheet(SHEET_NAMES.SALES).getDataRange().getValues();
   if (rows.length <= 1) return [];
-
-  // SALES col indices:
-  // 0:InvoiceID 1:Date 2:ProductID 3:ProductName 4:LotID 5:SupplierID
-  // 6:SupplierName 7:SoldQty 8:SellingRate 9:TargetRate
-  // 10:Revenue 11:COGS 12:GrossProfit
-  // 13:CustomerType 14:Buyer 15:PaymentMode 16:PaymentStatus
 
   const sales = [];
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
     if (!row[0]) continue;
     const dateStr = fmtDate(row[1]);
-
     if (filter && !dateInRange(dateStr, filter, from, to)) continue;
-
     sales.push({
       id:           String(row[0]).trim(),
       date:         dateStr,
@@ -585,36 +766,29 @@ function getSales(filter, from, to) {
 
 /** Get wastage records, optionally filtered by period */
 function getWastage(filter, from, to) {
-  const sheet = getSheet(SHEET_NAMES.WASTAGE);
-  const rows = sheet.getDataRange().getValues();
+  const rows = getSheet(SHEET_NAMES.WASTAGE).getDataRange().getValues();
   if (rows.length <= 1) return [];
-
-  // WASTAGE col indices:
-  // 0:WastageID 1:Date 2:ProductID 3:ProductName 4:LotID 5:SupplierID
-  // 6:WastedQty 7:UnitCost 8:LossAmount 9:Reason 10:Notes
 
   const wastage = [];
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
     if (!row[0]) continue;
     const dateStr = fmtDate(row[1]);
-
     if (filter && !dateInRange(dateStr, filter, from, to)) continue;
-
     wastage.push({
-      id:         String(row[0]).trim(),
-      wastageId:  String(row[0]).trim(),
-      date:       dateStr,
-      productId:  String(row[2]).trim(),
-      productName:String(row[3]).trim(),
-      lotId:      String(row[4]).trim(),
-      supplierId: String(row[5]).trim(),
-      quantity:   Number(row[6] || 0),
-      wastedQty:  Number(row[6] || 0),
-      unitCost:   Number(row[7] || 0),
-      lossAmount: Number(row[8] || 0),
-      reason:     String(row[9] || '').trim(),
-      notes:      String(row[10] || '').trim()
+      id:          String(row[0]).trim(),
+      wastageId:   String(row[0]).trim(),
+      date:        dateStr,
+      productId:   String(row[2]).trim(),
+      productName: String(row[3]).trim(),
+      lotId:       String(row[4]).trim(),
+      supplierId:  String(row[5]).trim(),
+      quantity:    Number(row[6] || 0),
+      wastedQty:   Number(row[6] || 0),
+      unitCost:    Number(row[7] || 0),
+      lossAmount:  Number(row[8] || 0),
+      reason:      String(row[9] || '').trim(),
+      notes:       String(row[10] || '').trim()
     });
   }
   return wastage;
@@ -622,20 +796,15 @@ function getWastage(filter, from, to) {
 
 /** Get expenses, optionally filtered by period */
 function getExpenses(filter, from, to) {
-  const sheet = getSheet(SHEET_NAMES.EXPENSES);
-  const rows = sheet.getDataRange().getValues();
+  const rows = getSheet(SHEET_NAMES.EXPENSES).getDataRange().getValues();
   if (rows.length <= 1) return [];
-
-  // EXPENSES col indices: 0:ExpenseID 1:Date 2:Category 3:Description 4:Amount 5:PaymentMode 6:PaidTo
 
   const expenses = [];
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
     if (!row[0]) continue;
     const dateStr = fmtDate(row[1]);
-
     if (filter && !dateInRange(dateStr, filter, from, to)) continue;
-
     expenses.push({
       id:          String(row[0]).trim(),
       date:        dateStr,
@@ -651,6 +820,8 @@ function getExpenses(filter, from, to) {
 
 /* ══════════════════════════════════════════════════
    POST — WRITE FUNCTIONS (TRANSACTIONS)
+   Each write function calls _invalidateDataCache() after mutations
+   so the next getAllData() call fetches fresh data.
    ══════════════════════════════════════════════════ */
 
 /**
@@ -669,7 +840,6 @@ function createPurchase(data) {
 
   const unitCost = round2(totalCost / totalQty);
 
-  // Look up product in STOCK sheet
   const stockSheet = getSheet(SHEET_NAMES.STOCK);
   const stockRows = stockSheet.getDataRange().getValues();
   const stockHit = findStockRow(stockSheet, stockRows, data.productId);
@@ -690,13 +860,11 @@ function createPurchase(data) {
     }
   }
 
-  // Generate Lot ID: P001, P002...
   const purSheet = getSheet(SHEET_NAMES.PURCHASES);
   const lotId = nextId(purSheet, 'P', 3);
   const dateStr = data.date || todayStr();
   const paymentMode = data.payment || data.paymentMode || 'Cash';
 
-  // Write to PURCHASES sheet
   purSheet.appendRow([
     lotId, dateStr, data.supplierId, supplierName,
     data.productId, productName, totalQty, totalCost,
@@ -714,13 +882,13 @@ function createPurchase(data) {
   const currentPurchased = Number(stockHit.row[5] || 0) + totalQty;
   const threshold = Number(stockHit.row[12] || 0);
 
-  // Update cells (1-based columns)
-  // Col 6=Purchased, 10=CurrentStock, 11=AvgCost, 12=StockValue, 14=Status
   stockSheet.getRange(stockHit.rowIdx, 6).setValue(currentPurchased);
   stockSheet.getRange(stockHit.rowIdx, 10).setValue(newCurrentStock);
   stockSheet.getRange(stockHit.rowIdx, 11).setValue(newAvgCost);
   stockSheet.getRange(stockHit.rowIdx, 12).setValue(newStockValue);
   stockSheet.getRange(stockHit.rowIdx, 14).setValue(stockStatus(newCurrentStock, threshold));
+
+  _invalidateDataCache(); // ← Cache bust after write
 
   return {
     lotId: lotId, productName: productName, supplierName: supplierName,
@@ -742,7 +910,6 @@ function createSale(data) {
   if (!qty || qty <= 0) throw new Error('Quantity must be greater than zero');
   if (!sellingRate || sellingRate <= 0) throw new Error('Selling rate must be greater than zero');
 
-  // Look up the lot from PURCHASES sheet
   const purSheet = getSheet(SHEET_NAMES.PURCHASES);
   const purRows = purSheet.getDataRange().getValues();
   let lotRowIdx = -1;
@@ -764,7 +931,6 @@ function createSale(data) {
   if (lotRowIdx === -1) throw new Error('Lot not found: ' + data.lotId);
   if (qty > lotRemainingQty) throw new Error('Insufficient lot stock. Available: ' + lotRemainingQty + ' KG in lot ' + data.lotId);
 
-  // Verify overall product stock
   const stockSheet = getSheet(SHEET_NAMES.STOCK);
   const stockRows = stockSheet.getDataRange().getValues();
   const stockHit = findStockRow(stockSheet, stockRows, data.productId);
@@ -773,12 +939,10 @@ function createSale(data) {
   const currentStock = Number(stockHit.row[9] || 0);
   if (qty > currentStock) throw new Error('Insufficient overall stock. Available: ' + currentStock + ' KG.');
 
-  // Financial calculations
   const revenue = round2(qty * sellingRate);
   const cogs = round2(qty * lotUnitCost);
   const grossProfit = round2(revenue - cogs);
 
-  // Generate Invoice ID: S001, S002...
   const salesSheet = getSheet(SHEET_NAMES.SALES);
   const invoiceId = nextId(salesSheet, 'S', 3);
   const dateStr = data.date || todayStr();
@@ -786,7 +950,6 @@ function createSale(data) {
   const buyer = data.buyer || 'Walk-in';
   const paymentMode = data.payment || data.paymentMode || 'Cash';
 
-  // Write to SALES sheet
   salesSheet.appendRow([
     invoiceId, dateStr, data.productId, productName,
     data.lotId, lotSupplierId, lotSupplierName,
@@ -795,22 +958,21 @@ function createSale(data) {
     customerType, buyer, paymentMode, 'Paid'
   ]);
 
-  // Update lot remaining qty in PURCHASES sheet (col 11 = Remaining Qty)
   const newLotRemaining = lotRemainingQty - qty;
   purSheet.getRange(lotRowIdx, 11).setValue(newLotRemaining);
 
-  // Update STOCK sheet
   const currentSold = Number(stockHit.row[6] || 0) + qty;
   const newCurrentStock = currentStock - qty;
   const avgCost = Number(stockHit.row[10] || 0);
   const newStockValue = round2(newCurrentStock * avgCost);
   const threshold = Number(stockHit.row[12] || 0);
 
-  // Col 7=Sold, 10=CurrentStock, 12=StockValue, 14=Status
   stockSheet.getRange(stockHit.rowIdx, 7).setValue(currentSold);
   stockSheet.getRange(stockHit.rowIdx, 10).setValue(newCurrentStock);
   stockSheet.getRange(stockHit.rowIdx, 12).setValue(newStockValue);
   stockSheet.getRange(stockHit.rowIdx, 14).setValue(stockStatus(newCurrentStock, threshold));
+
+  _invalidateDataCache(); // ← Cache bust after write
 
   return {
     invoiceId: invoiceId, productName: productName,
@@ -825,12 +987,8 @@ function createSale(data) {
 /**
  * Record a multi-item counter sale transaction under a single invoice ID.
  * Payload: {
- *   date?: string,
- *   customerType?: string,
- *   buyer?: string,
- *   payment?: string,
- *   notes?: string,
- *   items: Array<{ productId: string, lotId: string, quantity: number, rate: number }>
+ *   date?, customerType?, buyer?, payment?, notes?,
+ *   items: Array<{ productId, lotId, quantity, rate }>
  * }
  */
 function createBatchSale(data) {
@@ -845,7 +1003,7 @@ function createBatchSale(data) {
   const purRows   = purSheet.getDataRange().getValues();
   const stockRows = stockSheet.getDataRange().getValues();
 
-  // 1. Pre-validate all items
+  // Pre-validate all items
   for (let j = 0; j < data.items.length; j++) {
     const item = data.items[j];
     if (!item.productId) throw new Error('Product is required on item ' + (j + 1));
@@ -856,7 +1014,6 @@ function createBatchSale(data) {
     if (!itemRate || itemRate <= 0) throw new Error('Selling rate must be greater than zero on item ' + (j + 1));
   }
 
-  // Generate a SINGLE Invoice ID for all items
   const invoiceId    = data.invoiceId || nextId(salesSheet, 'S', 3);
   const dateStr      = data.date || todayStr();
   const customerType = data.customerType || 'Walk-in';
@@ -873,7 +1030,6 @@ function createBatchSale(data) {
     const qty = Number(it.quantity);
     const sellingRate = Number(it.rate || it.sellingRate);
 
-    // Look up the lot
     let lotRowIdx = -1;
     let lotUnitCost = 0, lotTargetRate = 0, lotRemainingQty = 0;
     let lotSupplierId = '', lotSupplierName = '', productName = it.productName || '';
@@ -895,7 +1051,6 @@ function createBatchSale(data) {
       throw new Error('Insufficient lot stock for ' + productName + '. Available: ' + lotRemainingQty + ' KG in lot ' + it.lotId);
     }
 
-    // Verify stock
     const stockHit = findStockRow(stockSheet, stockRows, it.productId);
     if (!stockHit) throw new Error('Product not found in stock sheet: ' + it.productId);
     productName = productName || String(stockHit.row[1]).trim();
@@ -912,7 +1067,6 @@ function createBatchSale(data) {
     totalCogs += cogs;
     totalGrossProfit += grossProfit;
 
-    // Append to SALES
     salesSheet.appendRow([
       invoiceId, dateStr, it.productId, productName,
       it.lotId, lotSupplierId, lotSupplierName,
@@ -921,12 +1075,10 @@ function createBatchSale(data) {
       customerType, buyer, paymentMode, 'Paid'
     ]);
 
-    // Update lot remaining in PURCHASES sheet
     const newLotRemaining = lotRemainingQty - qty;
     purSheet.getRange(lotRowIdx, 11).setValue(newLotRemaining);
     purRows[lotRowIdx - 1][10] = newLotRemaining;
 
-    // Update STOCK sheet
     const currentSold = Number(stockHit.row[6] || 0) + qty;
     const newCurrentStock = currentStock - qty;
     const avgCost = Number(stockHit.row[10] || 0);
@@ -942,6 +1094,8 @@ function createBatchSale(data) {
     stockHit.row[9] = newCurrentStock;
     stockHit.row[11] = newStockValue;
   }
+
+  _invalidateDataCache(); // ← Cache bust after write
 
   return {
     invoiceId: invoiceId,
@@ -967,7 +1121,6 @@ function createWastage(data) {
   if (!qty || qty <= 0) throw new Error('Wasted quantity must be greater than zero');
   if (!data.reason) throw new Error('Reason is required for wastage audit');
 
-  // Look up lot
   const purSheet = getSheet(SHEET_NAMES.PURCHASES);
   const purRows = purSheet.getDataRange().getValues();
   let lotRowIdx = -1;
@@ -987,7 +1140,6 @@ function createWastage(data) {
   if (lotRowIdx === -1) throw new Error('Lot not found: ' + data.lotId);
   if (qty > lotRemainingQty) throw new Error('Cannot waste more than remaining lot qty. Available: ' + lotRemainingQty + ' KG in lot ' + data.lotId);
 
-  // Verify stock
   const stockSheet = getSheet(SHEET_NAMES.STOCK);
   const stockRows = stockSheet.getDataRange().getValues();
   const stockHit = findStockRow(stockSheet, stockRows, data.productId);
@@ -997,34 +1149,31 @@ function createWastage(data) {
 
   const lossAmount = round2(qty * lotUnitCost);
 
-  // Generate Wastage ID: WST-001, WST-002...
   const wastSheet = getSheet(SHEET_NAMES.WASTAGE);
   const wastageId = nextId(wastSheet, 'WST-', 3);
   const dateStr = data.date || todayStr();
 
-  // Write to WASTAGE sheet
   wastSheet.appendRow([
     wastageId, dateStr, data.productId, productName,
     data.lotId, lotSupplierId, qty, lotUnitCost,
     lossAmount, data.reason, data.notes || ''
   ]);
 
-  // Update lot remaining qty (col 11)
   const newLotRemaining = lotRemainingQty - qty;
   purSheet.getRange(lotRowIdx, 11).setValue(newLotRemaining);
 
-  // Update STOCK sheet
   const currentWasted = Number(stockHit.row[7] || 0) + qty;
   const newCurrentStock = currentStock - qty;
   const avgCost = Number(stockHit.row[10] || 0);
   const newStockValue = round2(newCurrentStock * avgCost);
   const threshold = Number(stockHit.row[12] || 0);
 
-  // Col 8=Wasted, 10=CurrentStock, 12=StockValue, 14=Status
   stockSheet.getRange(stockHit.rowIdx, 8).setValue(currentWasted);
   stockSheet.getRange(stockHit.rowIdx, 10).setValue(newCurrentStock);
   stockSheet.getRange(stockHit.rowIdx, 12).setValue(newStockValue);
   stockSheet.getRange(stockHit.rowIdx, 14).setValue(stockStatus(newCurrentStock, threshold));
+
+  _invalidateDataCache(); // ← Cache bust after write
 
   return {
     wastageId: wastageId, productName: productName,
@@ -1055,6 +1204,8 @@ function createExpense(data) {
     data.paidTo || ''
   ]);
 
+  _invalidateDataCache(); // ← Cache bust after write
+
   return { expenseId: expId, amount: amount, category: data.category };
 }
 
@@ -1073,6 +1224,8 @@ function createSupplier(data) {
     data.phone || '', data.location || '',
     data.category || '', 'Active'
   ]);
+
+  _invalidateDataCache(); // ← Cache bust after write
 
   return { id: supId, name: data.name.trim() };
 }
@@ -1100,6 +1253,8 @@ function updateSupplier(data) {
   if (data.location !== undefined) supSheet.getRange(found, 4).setValue(data.location);
   if (data.category !== undefined) supSheet.getRange(found, 5).setValue(data.category);
   if (data.status !== undefined)   supSheet.getRange(found, 6).setValue(data.status === 'active' ? 'Active' : 'Inactive');
+
+  _invalidateDataCache(); // ← Cache bust after write
 
   return { success: true, id: data.id };
 }
@@ -1227,7 +1382,6 @@ function getBuyerRevenueSummary(filter, from, to) {
   sales.forEach(function(s) {
     var name = s.buyer || 'Walk-in';
     var tier = s.customerType || 'Walk-in';
-
     if (!buyersMap[name]) {
       buyersMap[name] = { name: name, customerType: tier, totalQty: 0, totalRevenue: 0, totalProfit: 0, orderCount: 0 };
     }
@@ -1248,17 +1402,11 @@ function getProductVelocity() {
 
   return stock.map(function(item) {
     var soldToday = 0, sold7Days = 0;
-
-    todaySales.forEach(function(s) {
-      if (s.productId === item.productId) soldToday += s.quantity;
-    });
-    weekSales.forEach(function(s) {
-      if (s.productId === item.productId) sold7Days += s.quantity;
-    });
+    todaySales.forEach(function(s) { if (s.productId === item.productId) soldToday += s.quantity; });
+    weekSales.forEach(function(s) { if (s.productId === item.productId) sold7Days += s.quantity; });
 
     var runRate = sold7Days / 7;
     var daysOfStock = runRate > 0 ? round2(item.currentStock / runRate) : 999;
-
     var velocityStatus = 'healthy';
     if (item.currentStock <= 0) velocityStatus = 'out';
     else if (item.currentStock <= item.reorderLevel) velocityStatus = 'low';
@@ -1285,7 +1433,6 @@ function getDashboardData(filter, from, to) {
   var stock = getStock();
 
   var totalRevenue = 0, totalCogs = 0, totalGrossProfit = 0;
-
   sales.forEach(function(s) {
     totalRevenue += s.revenue;
     totalCogs += s.cogs;
@@ -1306,7 +1453,6 @@ function getDashboardData(filter, from, to) {
 
   var stockValue = 0, lowStockCount = 0, outOfStockCount = 0;
   var lowStockProducts = [];
-
   stock.forEach(function(item) {
     stockValue += item.stockValue;
     if (item.status === 'LOW STOCK') {

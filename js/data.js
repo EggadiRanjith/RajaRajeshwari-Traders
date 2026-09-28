@@ -47,11 +47,18 @@ const _syncState = {
   syncing:    false,
 };
 
+/* ── Write-delay guard ──
+   After any POST write, we wait SYNC_DELAY_AFTER_WRITE_MS before the
+   next background GET sync. This prevents the GET from reading stale
+   pre-write spreadsheet data while GAS still holds its script lock. */
+let _lastWriteTs = 0;  // Unix ms timestamp of most recent _gasPost call
+const SYNC_DELAY_AFTER_WRITE_MS = 4500; // 4.5s — GAS script lock TTL buffer
+
 /* ────────────────────────────────────────────────────
    CACHE HELPERS (localStorage — live GAS data only)
    ──────────────────────────────────────────────────── */
 
-const CACHE_SCHEMA_VER = 'rrt_live_v4_';
+const CACHE_SCHEMA_VER = 'rrt_live_v5_';
 
 /* Purge all legacy mock data keys from previous sessions */
 (function _purgeLegacyMockStorage() {
@@ -143,6 +150,8 @@ async function _gasGet(action, params = {}, retries = 2, baseDelay = 400) {
 }
 
 async function _gasPost(action, payload) {
+  _lastWriteTs = Date.now(); // Record write time BEFORE the fetch so the
+                              // write-delay guard starts from the right moment
   const requestId = (typeof crypto !== 'undefined' && crypto.randomUUID)
     ? crypto.randomUUID()
     : (Date.now().toString(36) + '-' + Math.random().toString(36).slice(2));
@@ -385,7 +394,113 @@ async function _bootstrap() {
   }
 }
 
+/* ─────────────────────────────────────────────────────────────────
+   _applySettings — unpack GAS settings bundle into BUSINESS object
+   ───────────────────────────────────────────────────────────────── */
+function _applySettings(settings) {
+  if (!settings) return;
+  if (settings['Business Name']) BUSINESS.name     = settings['Business Name'];
+  if (settings['Owner'])         BUSINESS.owner    = settings['Owner'];
+  if (settings['Location'])      BUSINESS.location = settings['Location'];
+  if (settings['Currency'])      BUSINESS.currency = settings['Currency'];
+  if (settings['Version'])       BUSINESS.version  = settings['Version'];
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   _refreshFromGAS — FAST PATH: single getAllData call
+   Falls back to _refreshFromGAS_parallel on failure.
+   ───────────────────────────────────────────────────────────────── */
 async function _refreshFromGAS(silent = false) {
+  if (_syncState.syncing) return;
+  _syncState.syncing = true;
+  _updateSyncBadge('syncing');
+
+  // Write-delay guard: if a POST just completed, wait for GAS script lock to
+  // release before reading, otherwise we'd get stale pre-write spreadsheet data.
+  const msSinceWrite = Date.now() - _lastWriteTs;
+  if (_lastWriteTs > 0 && msSinceWrite < SYNC_DELAY_AFTER_WRITE_MS) {
+    const waitMs = SYNC_DELAY_AFTER_WRITE_MS - msSinceWrite;
+    console.log(`[RT] Write-delay guard: waiting ${waitMs}ms before sync`);
+    await new Promise(r => setTimeout(r, waitMs));
+  }
+
+  try {
+    if (!silent) _setProgress(15, 'Loading data from Google Sheets…');
+    else _setTopProgress(20);
+
+    // ── FAST PATH: single consolidated getAllData call ──
+    let bundle = null;
+    try {
+      bundle = await _gasGet('getAllData');
+    } catch (getAllDataErr) {
+      console.warn('[RT] getAllData endpoint failed, falling back to parallel fetches:', getAllDataErr.message);
+    }
+
+    if (bundle && Array.isArray(bundle.products)) {
+      /* Fast path: unpack and hydrate the bundle */
+      if (!silent) _setProgress(75, 'Processing data bundle…');
+      else _setTopProgress(75);
+
+      _applySettings(bundle.settings);
+
+      const products  = bundle.products  || [];
+      const suppliers = bundle.suppliers || [];
+      const stock     = bundle.stock     || [];
+      const purchases = bundle.purchases || [];
+      const sales     = bundle.sales     || [];
+      const expenses  = bundle.expenses  || [];
+      const wastage   = bundle.wastage   || [];
+
+      _hydrateAll({ products, suppliers, stock, purchases, sales, expenses, wastage });
+
+      /* Save each dataset to localStorage cache */
+      _saveCache('products',  products);
+      _saveCache('suppliers', suppliers);
+      _saveCache('stock',     stock);
+      _saveCache('purchases', purchases);
+      _saveCache('sales',     sales);
+      _saveCache('expenses',  expenses);
+      _saveCache('wastage',   wastage);
+
+      _syncState.error      = null;
+      _syncState.lastSynced = new Date();
+      _hideSyncError();
+      _updateSyncBadge('ok');
+
+      if (!silent) {
+        _setProgress(100, 'Platform synchronized. Launching…');
+        setTimeout(() => { _syncState.loading = false; _hideLoadingOverlay(); }, 350);
+      } else {
+        _syncState.loading = false;
+        _setTopProgress(100);
+      }
+      _triggerRender();
+
+    } else {
+      /* SLOW FALLBACK: 8 parallel individual calls (old behaviour) */
+      console.warn('[RT] Falling back to parallel individual fetches');
+      _syncState.syncing = false; // reset so parallel can re-acquire
+      await _refreshFromGAS_parallel(silent);
+    }
+
+  } catch (err) {
+    _syncState.syncing = false;
+    if (silent) _setTopProgress(100);
+    if (!silent) throw err;
+    _syncState.error = err.message;
+    _updateSyncBadge('offline');
+    _showSyncError(`Background sync encountered an issue. Displaying cached data.\n\n${err.message}`);
+  } finally {
+    _syncState.syncing = false;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   _refreshFromGAS_parallel — SLOW FALLBACK: 8 parallel GAS calls
+   Preserved for backward compatibility when getAllData is unavailable
+   (e.g. before GAS redeployment or if GAS cache size limit is hit).
+   ───────────────────────────────────────────────────────────────── */
+async function _refreshFromGAS_parallel(silent = false) {
   if (_syncState.syncing) return;
   _syncState.syncing = true;
   _updateSyncBadge('syncing');
@@ -399,24 +514,14 @@ async function _refreshFromGAS(silent = false) {
     const wrap = (promise, name) => promise.then(val => {
       completed++;
       const pct = 15 + Math.round((completed / totalCalls) * 75);
-      if (!silent) {
-        _setProgress(pct, `Reconciling ${name} (${completed}/${totalCalls})…`);
-      } else {
-        _setTopProgress(pct);
-      }
+      if (!silent) _setProgress(pct, `Reconciling ${name} (${completed}/${totalCalls})…`);
+      else _setTopProgress(pct);
       return val;
     });
 
-    // Parallel fetch of all entities with individual fault-tolerance & progress tracking
     const [
-      pingRes,
-      prodRes,
-      supRes,
-      stockRes,
-      purRes,
-      salesRes,
-      expRes,
-      wasRes
+      pingRes, prodRes, supRes, stockRes,
+      purRes, salesRes, expRes, wasRes
     ] = await Promise.allSettled([
       wrap(_gasGet('ping'), 'system status'),
       wrap(_gasGet('getProducts'), 'catalog'),
@@ -428,24 +533,17 @@ async function _refreshFromGAS(silent = false) {
       wrap(_gasGet('getWastage', { filter: 'all' }), 'spoilage records'),
     ]);
 
-    // Check critical entity: products. If completely unfulfilled and cold, abort.
     if (prodRes.status === 'rejected' && PRODUCTS.length === 0) {
       throw new Error(`Failed to load product catalog: ${prodRes.reason?.message || 'Network error'}`);
     }
 
     if (pingRes.status === 'fulfilled' && pingRes.value) {
-      const pingInfo = pingRes.value;
-      if (pingInfo.business || pingInfo.store) BUSINESS.name = pingInfo.business || pingInfo.store;
-      if (pingInfo.owner)    BUSINESS.owner = pingInfo.owner;
-      if (pingInfo.location) BUSINESS.location = pingInfo.location;
-      if (pingInfo.currency) BUSINESS.currency = pingInfo.currency;
-      if (pingInfo.version)  BUSINESS.version = pingInfo.version;
-      if (pingInfo.settings) {
-        if (pingInfo.settings['Business Name']) BUSINESS.name = pingInfo.settings['Business Name'];
-        if (pingInfo.settings['Owner']) BUSINESS.owner = pingInfo.settings['Owner'];
-        if (pingInfo.settings['Location']) BUSINESS.location = pingInfo.settings['Location'];
-        if (pingInfo.settings['Currency']) BUSINESS.currency = pingInfo.settings['Currency'];
-      }
+      const pi = pingRes.value;
+      if (pi.store)    BUSINESS.name     = pi.store;
+      if (pi.owner)    BUSINESS.owner    = pi.owner;
+      if (pi.location) BUSINESS.location = pi.location;
+      if (pi.version)  BUSINESS.version  = pi.version;
+      _applySettings(pi.settings);
     }
 
     if (!silent) _setProgress(94, 'Computing live inventory valuations & margins…');
@@ -460,7 +558,6 @@ async function _refreshFromGAS(silent = false) {
 
     _hydrateAll({ products, suppliers, stock, purchases, sales, expenses, wastage });
 
-    /* Save to live cache */
     if (prodRes.status === 'fulfilled')  _saveCache('products',  products);
     if (supRes.status === 'fulfilled')   _saveCache('suppliers', suppliers);
     if (stockRes.status === 'fulfilled') _saveCache('stock',     stock);
@@ -476,10 +573,7 @@ async function _refreshFromGAS(silent = false) {
 
     if (!silent) {
       _setProgress(100, 'Platform synchronized. Launching…');
-      setTimeout(() => {
-        _syncState.loading = false;
-        _hideLoadingOverlay();
-      }, 350);
+      setTimeout(() => { _syncState.loading = false; _hideLoadingOverlay(); }, 350);
     } else {
       _syncState.loading = false;
       _setTopProgress(100);
@@ -1141,9 +1235,11 @@ async function recordWastage(entry) {
     notes:     entry.notes  || '',
     date:      entry.date   || todayStr(),
   });
-  /* Invalidate and refresh */
+  /* Invalidate localStorage cache, then delayed silent sync.
+     _lastWriteTs was already set by _gasPost — the 4.5s delay is
+     enforced inside _refreshFromGAS via the write-delay guard. */
   _clearCache();
-  await _refreshFromGAS(true);
+  setTimeout(() => _refreshFromGAS(true).catch(err => console.warn('[RT] Wastage sync:', err.message)), 500);
   return result;
 }
 

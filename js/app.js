@@ -973,8 +973,14 @@ async function handleMakeSaleSubmit() {
       resetMakeSaleForm();
       renderMakeSaleLast10(assignedId);
 
-      // Silent non-blocking background synchronization with Google Sheets
-      RT.refresh(true).catch(err => console.warn('[RT] Silent sync warning:', err.message));
+      // Delayed non-blocking background sync.
+      // The 500ms gives the browser time to paint the optimistic UI update first.
+      // _refreshFromGAS then enforces an additional 4.5s write-delay guard to
+      // prevent GAS from returning stale pre-write data that would erase the
+      // just-recorded sale from the screen.
+      setTimeout(() => {
+        RT.refresh(true).catch(err => console.warn('[RT] Silent sync warning:', err.message));
+      }, 500);
     } catch (err) {
       showToast(err.message || 'Failed to record sale in Google Sheets', 'danger');
     }
