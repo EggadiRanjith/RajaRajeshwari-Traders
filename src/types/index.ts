@@ -100,12 +100,14 @@ export interface Sale {
 
 export interface WastageRecord {
   id: string;          // WST-001
+  wastageId?: string;
   date: string;
   productId: string;
   productName: string;
   lotId: string;
   supplierId: string;
   quantity: number;
+  wastedQty?: number;
   unitCost: number;
   lossAmount: number;
   reason: string;

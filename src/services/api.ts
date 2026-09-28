@@ -86,10 +86,14 @@ async function apiGet<T>(action: string, params?: Record<string, string>): Promi
  * Sends { action, payload } as JSON body.
  */
 async function apiPost<T>(action: string, payload: Record<string, unknown>): Promise<T> {
+  const requestId = (typeof crypto !== 'undefined' && crypto.randomUUID)
+    ? crypto.randomUUID()
+    : (Date.now().toString(36) + '-' + Math.random().toString(36).slice(2));
+
   const res = await fetch(API_BASE_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ action, payload }),
+    body: JSON.stringify({ requestId, action, payload }),
   });
 
   if (!res.ok) {

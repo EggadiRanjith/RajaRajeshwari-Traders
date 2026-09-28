@@ -130,6 +130,9 @@ function doPost(e) {
       case 'createSale':
         result = createSale(payload);
         break;
+      case 'createBatchSale':
+        result = createBatchSale(payload);
+        break;
       case 'createWastage':
         result = createWastage(payload);
         break;
@@ -600,12 +603,14 @@ function getWastage(filter, from, to) {
 
     wastage.push({
       id:         String(row[0]).trim(),
+      wastageId:  String(row[0]).trim(),
       date:       dateStr,
       productId:  String(row[2]).trim(),
       productName:String(row[3]).trim(),
       lotId:      String(row[4]).trim(),
       supplierId: String(row[5]).trim(),
       quantity:   Number(row[6] || 0),
+      wastedQty:  Number(row[6] || 0),
       unitCost:   Number(row[7] || 0),
       lossAmount: Number(row[8] || 0),
       reason:     String(row[9] || '').trim(),
@@ -814,6 +819,140 @@ function createSale(data) {
     revenue: revenue, cogs: cogs, grossProfit: grossProfit,
     customerType: customerType, buyer: buyer,
     remainingLotStock: newLotRemaining, remainingProductStock: newCurrentStock
+  };
+}
+
+/**
+ * Record a multi-item counter sale transaction under a single invoice ID.
+ * Payload: {
+ *   date?: string,
+ *   customerType?: string,
+ *   buyer?: string,
+ *   payment?: string,
+ *   notes?: string,
+ *   items: Array<{ productId: string, lotId: string, quantity: number, rate: number }>
+ * }
+ */
+function createBatchSale(data) {
+  if (!data.items || !Array.isArray(data.items) || data.items.length === 0) {
+    throw new Error('At least one item is required to record a multi-item sale');
+  }
+
+  const salesSheet = getSheet(SHEET_NAMES.SALES);
+  const purSheet   = getSheet(SHEET_NAMES.PURCHASES);
+  const stockSheet = getSheet(SHEET_NAMES.STOCK);
+
+  const purRows   = purSheet.getDataRange().getValues();
+  const stockRows = stockSheet.getDataRange().getValues();
+
+  // 1. Pre-validate all items
+  for (let j = 0; j < data.items.length; j++) {
+    const item = data.items[j];
+    if (!item.productId) throw new Error('Product is required on item ' + (j + 1));
+    if (!item.lotId) throw new Error('Lot selection is required on item ' + (j + 1));
+    const itemQty = Number(item.quantity);
+    const itemRate = Number(item.rate || item.sellingRate);
+    if (!itemQty || itemQty <= 0) throw new Error('Quantity must be greater than zero on item ' + (j + 1));
+    if (!itemRate || itemRate <= 0) throw new Error('Selling rate must be greater than zero on item ' + (j + 1));
+  }
+
+  // Generate a SINGLE Invoice ID for all items
+  const invoiceId    = data.invoiceId || nextId(salesSheet, 'S', 3);
+  const dateStr      = data.date || todayStr();
+  const customerType = data.customerType || 'Walk-in';
+  const buyer        = data.buyer || 'Walk-in';
+  const paymentMode  = data.payment || data.paymentMode || 'Cash';
+  const notes        = data.notes || '';
+
+  let totalRevenue = 0;
+  let totalGrossProfit = 0;
+  let totalCogs = 0;
+
+  for (let j = 0; j < data.items.length; j++) {
+    const it = data.items[j];
+    const qty = Number(it.quantity);
+    const sellingRate = Number(it.rate || it.sellingRate);
+
+    // Look up the lot
+    let lotRowIdx = -1;
+    let lotUnitCost = 0, lotTargetRate = 0, lotRemainingQty = 0;
+    let lotSupplierId = '', lotSupplierName = '', productName = it.productName || '';
+
+    for (let i = 1; i < purRows.length; i++) {
+      if (String(purRows[i][0]).trim() === it.lotId) {
+        lotRowIdx = i + 1;
+        lotSupplierId = String(purRows[i][2]).trim();
+        lotSupplierName = String(purRows[i][3]).trim();
+        productName = productName || String(purRows[i][5]).trim();
+        lotUnitCost = Number(purRows[i][8] || 0);
+        lotTargetRate = Number(purRows[i][9] || 0);
+        lotRemainingQty = Number(purRows[i][10] || 0);
+        break;
+      }
+    }
+    if (lotRowIdx === -1) throw new Error('Lot not found: ' + it.lotId);
+    if (qty > lotRemainingQty) {
+      throw new Error('Insufficient lot stock for ' + productName + '. Available: ' + lotRemainingQty + ' KG in lot ' + it.lotId);
+    }
+
+    // Verify stock
+    const stockHit = findStockRow(stockSheet, stockRows, it.productId);
+    if (!stockHit) throw new Error('Product not found in stock sheet: ' + it.productId);
+    productName = productName || String(stockHit.row[1]).trim();
+    const currentStock = Number(stockHit.row[9] || 0);
+    if (qty > currentStock) {
+      throw new Error('Insufficient overall stock for ' + productName + '. Available: ' + currentStock + ' KG.');
+    }
+
+    const revenue = round2(qty * sellingRate);
+    const cogs = round2(qty * lotUnitCost);
+    const grossProfit = round2(revenue - cogs);
+
+    totalRevenue += revenue;
+    totalCogs += cogs;
+    totalGrossProfit += grossProfit;
+
+    // Append to SALES
+    salesSheet.appendRow([
+      invoiceId, dateStr, it.productId, productName,
+      it.lotId, lotSupplierId, lotSupplierName,
+      qty, sellingRate, lotTargetRate,
+      revenue, cogs, grossProfit,
+      customerType, buyer, paymentMode, 'Paid'
+    ]);
+
+    // Update lot remaining in PURCHASES sheet
+    const newLotRemaining = lotRemainingQty - qty;
+    purSheet.getRange(lotRowIdx, 11).setValue(newLotRemaining);
+    purRows[lotRowIdx - 1][10] = newLotRemaining;
+
+    // Update STOCK sheet
+    const currentSold = Number(stockHit.row[6] || 0) + qty;
+    const newCurrentStock = currentStock - qty;
+    const avgCost = Number(stockHit.row[10] || 0);
+    const newStockValue = round2(newCurrentStock * avgCost);
+    const threshold = Number(stockHit.row[12] || 0);
+
+    stockSheet.getRange(stockHit.rowIdx, 7).setValue(currentSold);
+    stockSheet.getRange(stockHit.rowIdx, 10).setValue(newCurrentStock);
+    stockSheet.getRange(stockHit.rowIdx, 12).setValue(newStockValue);
+    stockSheet.getRange(stockHit.rowIdx, 14).setValue(stockStatus(newCurrentStock, threshold));
+
+    stockHit.row[6] = currentSold;
+    stockHit.row[9] = newCurrentStock;
+    stockHit.row[11] = newStockValue;
+  }
+
+  return {
+    invoiceId: invoiceId,
+    itemCount: data.items.length,
+    revenue: round2(totalRevenue),
+    cogs: round2(totalCogs),
+    grossProfit: round2(totalGrossProfit),
+    customerType: customerType,
+    buyer: buyer,
+    paymentMode: paymentMode,
+    date: dateStr
   };
 }
 

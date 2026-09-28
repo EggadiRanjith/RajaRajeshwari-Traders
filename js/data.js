@@ -143,10 +143,14 @@ async function _gasGet(action, params = {}, retries = 2, baseDelay = 400) {
 }
 
 async function _gasPost(action, payload) {
+  const requestId = (typeof crypto !== 'undefined' && crypto.randomUUID)
+    ? crypto.randomUUID()
+    : (Date.now().toString(36) + '-' + Math.random().toString(36).slice(2));
+
   const res = await fetch(API_BASE_URL, {
     method:  'POST',
     headers: { 'Content-Type': 'text/plain' },  // GAS CORS requires text/plain
-    body:    JSON.stringify({ action, payload }),
+    body:    JSON.stringify({ requestId, action, payload }),
     redirect: 'follow',
   });
   if (!res.ok) throw new Error(`HTTP ${res.status} on ${action}`);
@@ -159,6 +163,24 @@ async function _gasPost(action, payload) {
    LOADING / ERROR UI
    ──────────────────────────────────────────────────── */
 
+function _setTopProgress(pct) {
+  let bar = document.getElementById('rrt-top-progress');
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'rrt-top-progress';
+    bar.style.cssText = 'position:fixed;top:0;left:0;height:2.5px;width:0%;background:linear-gradient(90deg,#1A3262 0%,#2563EB 50%,#059669 100%);z-index:999999;transition:width 0.25s ease,opacity 0.3s ease;pointer-events:none;opacity:0;box-shadow:0 0 10px rgba(37,99,235,0.6);';
+    document.body.appendChild(bar);
+  }
+  bar.style.opacity = '1';
+  bar.style.width = Math.min(100, Math.max(0, pct)) + '%';
+  if (pct >= 100) {
+    setTimeout(() => {
+      bar.style.opacity = '0';
+      setTimeout(() => { if (bar) bar.style.width = '0%'; }, 350);
+    }, 400);
+  }
+}
+
 function _showLoadingOverlay() {
   let el = document.getElementById('rrt-loading-overlay');
   if (!el) {
@@ -166,66 +188,68 @@ function _showLoadingOverlay() {
     el.id = 'rrt-loading-overlay';
     el.style.cssText = `
       position:fixed;inset:0;z-index:99999;
-      background:radial-gradient(ellipse at 50% 35%, #0d1b2a 0%, #050a12 100%);
+      background:radial-gradient(ellipse at 50% 35%, #0B132B 0%, #030712 100%);
       display:flex;flex-direction:column;align-items:center;justify-content:center;
-      transition:opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      transition:opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1);
     `;
     el.innerHTML = `
       <div style="
-        background:rgba(15, 23, 42, 0.85);
-        backdrop-filter:blur(24px);
-        -webkit-backdrop-filter:blur(24px);
-        border:1px solid rgba(255, 255, 255, 0.08);
-        box-shadow:0 30px 60px -12px rgba(0,0,0,0.8), 0 0 40px rgba(16,185,129,0.06);
-        border-radius:20px;
-        padding:40px 48px;
+        background:rgba(15, 23, 42, 0.95);
+        backdrop-filter:blur(32px);
+        -webkit-backdrop-filter:blur(32px);
+        border:1px solid rgba(255, 255, 255, 0.09);
+        box-shadow:0 25px 60px -12px rgba(0,0,0,0.85), 0 0 1px 1px rgba(255,255,255,0.06);
+        border-radius:18px;
+        padding:36px 44px;
         width:90%;
-        max-width:440px;
+        max-width:420px;
         display:flex;
         flex-direction:column;
         align-items:center;
         text-align:center;
+        position:relative;
+        overflow:hidden;
       ">
         <div style="
-          width:54px;height:54px;border-radius:14px;
-          background:linear-gradient(135deg, rgba(16,185,129,0.18) 0%, rgba(245,158,11,0.12) 100%);
-          border:1px solid rgba(16,185,129,0.3);
+          width:52px;height:52px;border-radius:14px;
+          background:linear-gradient(135deg, rgba(26,50,98,0.5) 0%, rgba(37,99,235,0.18) 100%);
+          border:1px solid rgba(59,130,246,0.28);
           display:flex;align-items:center;justify-content:center;
-          margin-bottom:18px;
-          box-shadow:0 0 24px rgba(16,185,129,0.2);
+          margin-bottom:16px;
+          box-shadow:0 8px 24px rgba(26,50,98,0.3);
         ">
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#60A5FA" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
             <line x1="3" y1="6" x2="21" y2="6"/>
             <path d="M16 10a4 4 0 0 1-8 0"/>
           </svg>
         </div>
 
-        <div style="color:#f8fafc;font-size:17px;font-weight:700;letter-spacing:-0.01em;font-family:inherit;">RajaRajeshwari Traders</div>
-        <div style="color:#64748b;font-size:12px;font-weight:500;margin-top:2px;">Business Intelligence &amp; Retail Ledger</div>
+        <div style="color:#F8FAFC;font-size:16px;font-weight:700;letter-spacing:-0.01em;font-family:inherit;">RajaRajeshwari Traders</div>
+        <div style="color:#94A3B8;font-size:11.5px;font-weight:500;margin-top:2px;letter-spacing:0.02em;">Business Intelligence &amp; Retail Operations</div>
 
-        <div style="margin:26px 0 14px;display:flex;align-items:baseline;justify-content:center;gap:3px;">
-          <span id="rrt-loader-pct" style="font-size:42px;font-weight:800;color:#10b981;font-family:monospace;letter-spacing:-0.03em;line-height:1;text-shadow:0 0 24px rgba(16,185,129,0.35);">0</span>
-          <span style="font-size:20px;font-weight:700;color:#34d399;font-family:monospace;">%</span>
+        <div style="margin:24px 0 14px;display:flex;align-items:baseline;justify-content:center;gap:2px;">
+          <span id="rrt-loader-pct" style="font-size:32px;font-weight:700;color:#F8FAFC;font-variant-numeric:tabular-nums;line-height:1;">0</span>
+          <span style="font-size:16px;font-weight:600;color:#64748B;">%</span>
         </div>
 
-        <div style="width:100%;height:6px;background:rgba(255,255,255,0.06);border-radius:999px;overflow:hidden;position:relative;">
+        <div style="width:100%;height:3.5px;background:rgba(255,255,255,0.08);border-radius:999px;overflow:hidden;position:relative;">
           <div id="rrt-loader-bar" style="
             height:100%;width:0%;
-            background:linear-gradient(90deg, #10b981 0%, #34d399 50%, #f59e0b 100%);
+            background:linear-gradient(90deg, #1A3262 0%, #2563EB 50%, #059669 100%);
             border-radius:999px;
             transition:width 0.28s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow:0 0 14px rgba(16,185,129,0.5);
+            box-shadow:0 0 12px rgba(37,99,235,0.5);
           "></div>
         </div>
 
-        <div id="rrt-loading-sub" style="color:#94a3b8;font-size:12.5px;font-weight:500;margin-top:14px;min-height:18px;">
+        <div id="rrt-loading-sub" style="color:#94A3B8;font-size:12px;font-weight:500;margin-top:14px;min-height:18px;">
           Establishing connection to Google Sheets…
         </div>
 
-        <div style="display:flex;align-items:center;gap:6px;margin-top:18px;padding:4px 10px;background:rgba(255,255,255,0.03);border-radius:999px;border:1px solid rgba(255,255,255,0.05);">
-          <span style="width:6px;height:6px;background:#10b981;border-radius:50%;box-shadow:0 0 6px #10b981;animation:pulse-dot 1.5s infinite;"></span>
-          <span style="font-size:10.5px;color:#64748b;font-weight:600;letter-spacing:0.02em;text-transform:uppercase;">Secure Apps Script Gateway</span>
+        <div style="display:flex;align-items:center;gap:6px;margin-top:18px;padding:4px 12px;background:rgba(255,255,255,0.03);border-radius:999px;border:1px solid rgba(255,255,255,0.06);">
+          <span style="width:6px;height:6px;background:#10B981;border-radius:50%;box-shadow:0 0 6px rgba(16,185,129,0.7);animation:pulse-dot 1.5s infinite;"></span>
+          <span style="font-size:10px;color:#64748B;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;">Enterprise Cloud Ledger</span>
         </div>
       </div>
       <style>
@@ -368,14 +392,17 @@ async function _refreshFromGAS(silent = false) {
 
   try {
     if (!silent) _setProgress(15, 'Establishing secure Google Apps Script handshake…');
+    else _setTopProgress(15);
 
     let completed = 0;
     const totalCalls = 8;
     const wrap = (promise, name) => promise.then(val => {
       completed++;
+      const pct = 15 + Math.round((completed / totalCalls) * 75);
       if (!silent) {
-        const pct = 15 + Math.round((completed / totalCalls) * 75);
         _setProgress(pct, `Reconciling ${name} (${completed}/${totalCalls})…`);
+      } else {
+        _setTopProgress(pct);
       }
       return val;
     });
@@ -453,10 +480,14 @@ async function _refreshFromGAS(silent = false) {
         _syncState.loading = false;
         _hideLoadingOverlay();
       }, 350);
+    } else {
+      _syncState.loading = false;
+      _setTopProgress(100);
     }
     _triggerRender();
   } catch (err) {
     _syncState.syncing = false;
+    if (silent) _setTopProgress(100);
     if (!silent) throw err;
     _syncState.error = err.message;
     _updateSyncBadge('offline');
@@ -578,9 +609,21 @@ function _hydrateAll({ products, suppliers, stock, purchases, sales, expenses, w
   /* Normalise WASTAGE */
   WASTAGE.forEach(w => {
     w.id         = w.id || w.wastageId;
-    w.quantity   = Number(w.quantity   || 0);
-    w.unitCost   = Number(w.unitCost   || 0);
-    w.lossAmount = Number(w.lossAmount || w.quantity * w.unitCost || 0);
+    w.wastageId  = w.wastageId || w.id;
+    const rawQty = w.quantity !== undefined ? w.quantity : (w.wastedQty !== undefined ? w.wastedQty : (w.qty !== undefined ? w.qty : (w.quantityKg || 0)));
+    w.unitCost   = Number(w.unitCost || 0);
+    w.lossAmount = Number(w.lossAmount || 0);
+
+    let parsedQty = Number(rawQty || 0);
+    if (!parsedQty && w.lossAmount > 0 && w.unitCost > 0) {
+      parsedQty = Math.round((w.lossAmount / w.unitCost) * 100) / 100;
+    }
+
+    w.quantity   = parsedQty;
+    w.wastedQty  = parsedQty;
+    if (!w.lossAmount) {
+      w.lossAmount = Math.round(w.quantity * w.unitCost * 100) / 100;
+    }
   });
 
   _syncDomSettings();
@@ -789,10 +832,10 @@ function filterWastageByPeriod(period, customFrom, customTo) {
 
 function getWastageStats(period, customFrom, customTo) {
   const list = filterWastageByPeriod(period, customFrom, customTo);
-  const totalWeight = list.reduce((s, w) => s + w.quantity, 0);
-  const totalLoss   = list.reduce((s, w) => s + w.lossAmount, 0);
+  const totalWeight = list.reduce((s, w) => s + (w.quantity !== undefined ? w.quantity : (w.wastedQty || 0)), 0);
+  const totalLoss   = list.reduce((s, w) => s + (w.lossAmount || 0), 0);
   const byReason    = {};
-  list.forEach(w => { byReason[w.reason] = (byReason[w.reason] || 0) + w.lossAmount; });
+  list.forEach(w => { byReason[w.reason] = (byReason[w.reason] || 0) + (w.lossAmount || 0); });
   return { list, totalWeight, totalLoss, count: list.length, byReason };
 }
 
@@ -1154,12 +1197,14 @@ window.RT = {
   get syncError() { return _syncState.error; },
   get lastSynced(){ return _syncState.lastSynced; },
 
-  /* Refresh manually (call from Retry button or Settings page) */
-  refresh() {
-    _clearCache();
-    _syncState.loading = true;
-    _showLoadingOverlay();
-    return _refreshFromGAS(false);
+  /* Refresh data (silent by default for smooth background updates without blocking modal) */
+  refresh(silent = true) {
+    if (!silent) {
+      _clearCache();
+      _syncState.loading = true;
+      _showLoadingOverlay();
+    }
+    return _refreshFromGAS(silent);
   },
 
   /* Lookup helpers */

@@ -15,7 +15,7 @@
   <!-- Design System -->
   <link rel="stylesheet" href="css/tokens.css">
   <link rel="stylesheet" href="css/layout.css">
-  <link rel="stylesheet" href="css/components.css?v=5.0">
+  <link rel="stylesheet" href="css/components.css?v=7.0">
 
   <!-- Libraries -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" defer></script>
@@ -227,56 +227,11 @@
             </div>
 
             <form id="make-sale-form" onsubmit="event.preventDefault(); handleMakeSaleSubmit();">
-              <!-- Row 1: Product, Seller Lot Selection, Date -->
-              <div class="ms-form-row ms-row-top" style="grid-template-columns: 1.2fr 1.6fr 0.9fr;">
-                <div class="form-group ms-fg-product" style="margin-bottom:0">
-                  <div class="ms-label-group">
-                    <label class="form-label" for="ms-product">Product <span class="required">*</span></label>
-                    <span id="ms-stock-badge" class="ms-stock-chip">Stock: --</span>
-                  </div>
-                  <select class="input" id="ms-product" required onchange="handleMakeSaleProductChange()">
-                    <option value="">Select product to sell…</option>
-                  </select>
-                </div>
-                <div class="form-group ms-fg-lot" style="margin-bottom:0">
-                  <div class="ms-label-group">
-                    <label class="form-label" for="ms-lot">Seller Batch / Sourced Lot <span class="required">*</span></label>
-                    <span id="ms-lot-badge" class="ms-stock-chip" style="color:var(--primary);font-weight:700">Lot: --</span>
-                  </div>
-                  <select class="input" id="ms-lot" required onchange="handleMakeSaleLotChange()">
-                    <option value="">Select seller lot…</option>
-                  </select>
-                </div>
+              <!-- Customer & Transaction Header -->
+              <div class="ms-form-row ms-row-top" style="grid-template-columns: 1fr 1.15fr 1.25fr 1.35fr 1fr; gap:12px; align-items:flex-end;">
                 <div class="form-group ms-fg-date" style="margin-bottom:0">
-                  <div class="ms-label-group">
-                    <label class="form-label" for="ms-date">Date <span class="required">*</span></label>
-                    <span class="ms-stock-chip" style="color:var(--text-3);font-size:11px;">Billing Day</span>
-                  </div>
+                  <label class="form-label" for="ms-date">Date <span class="required">*</span></label>
                   <input class="input date-default" type="date" id="ms-date" required>
-                </div>
-              </div>
-
-              <!-- Row 2: Quantity, Selling Rate (Target & Live Variance), Customer Category, Buyer Name -->
-              <div class="ms-form-row ms-row-mid" style="grid-template-columns: 0.9fr 1.3fr 1.1fr 1.2fr;">
-                <div class="form-group ms-fg-qty" style="margin-bottom:0">
-                  <label class="form-label" for="ms-qty">Quantity <span class="required">*</span></label>
-                  <div class="input-wrap">
-                    <input class="input has-suffix" type="number" id="ms-qty" placeholder="0.00"
-                      step="any" min="0.1" required oninput="updateMakeSaleCalc()">
-                    <span class="input-suffix" id="ms-unit-label">KG</span>
-                  </div>
-                </div>
-                <div class="form-group ms-fg-rate" style="margin-bottom:0">
-                  <div class="ms-label-group">
-                    <label class="form-label" for="ms-rate">Selling Rate <span class="required">*</span></label>
-                    <span id="ms-target-rate-badge" class="ms-stock-chip" style="color:var(--primary);font-weight:700">Target: --</span>
-                  </div>
-                  <div class="input-wrap">
-                    <span class="input-prefix">₹</span>
-                    <input class="input has-prefix" type="number" id="ms-rate" placeholder="0.00"
-                      step="0.50" min="0.01" required oninput="updateMakeSaleCalc()">
-                  </div>
-                  <div id="ms-variance-tag" style="margin-top:5px;font-size:11px;font-weight:600;min-height:16px;"></div>
                 </div>
                 <div class="form-group ms-fg-cust-type" style="margin-bottom:0">
                   <label class="form-label" for="ms-customer-type">Buyer Category <span class="required">*</span></label>
@@ -287,49 +242,74 @@
                   </select>
                 </div>
                 <div class="form-group ms-fg-buyer" style="margin-bottom:0">
-                  <label class="form-label" for="ms-buyer">Customer / Business</label>
-                  <input class="input" type="text" id="ms-buyer" value="Walk-in" placeholder="Customer name">
+                  <label class="form-label" for="ms-buyer">Customer / Business Name</label>
+                  <input class="input" type="text" id="ms-buyer" value="Walk-in" placeholder="Customer or Hotel name">
                 </div>
-              </div>
-
-              <!-- Row 3: Payment Segmented Pills (Strict Zero-Credit Policy) & Notes -->
-              <div class="ms-form-row ms-row-bot" style="grid-template-columns: 1.4fr 1fr;">
                 <div class="form-group ms-fg-payment" style="margin-bottom:0">
-                  <label class="form-label">Payment Mode (No Credit Policy) <span class="required">*</span></label>
+                  <label class="form-label">Payment Mode <span class="required">*</span></label>
                   <div class="ms-payment-pills" id="ms-payment-pills" role="radiogroup" aria-label="Payment Mode">
                     <button type="button" class="ms-pay-pill active" data-pay="Cash"><i data-lucide="banknote"></i> Cash</button>
-                    <button type="button" class="ms-pay-pill" data-pay="UPI"><i data-lucide="smartphone"></i> UPI / GPay</button>
+                    <button type="button" class="ms-pay-pill" data-pay="UPI"><i data-lucide="smartphone"></i> UPI</button>
                     <button type="button" class="ms-pay-pill" data-pay="Bank"><i data-lucide="building"></i> Bank</button>
                   </div>
                   <input type="hidden" id="ms-payment" value="Cash">
                 </div>
                 <div class="form-group ms-fg-notes" style="margin-bottom:0">
                   <label class="form-label" for="ms-notes">Notes (Optional)</label>
-                  <input class="input" type="text" id="ms-notes" placeholder="Batch / Vehicle / Ref…">
+                  <input class="input" type="text" id="ms-notes" placeholder="Vehicle / Batch / Ref…">
+                </div>
+              </div>
+
+              <!-- Produce Line Items Section -->
+              <div class="ms-items-section" style="margin-top:16px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding-top:14px;border-top:1px solid var(--border-subtle);">
+                  <div>
+                    <div style="font-weight:700;font-size:13px;color:var(--text-1);display:flex;align-items:center;gap:6px;">
+                      <i data-lucide="shopping-bag" style="width:16px;height:16px;color:var(--primary)"></i>
+                      <span>Produce Line Items</span>
+                    </div>
+                    <div style="font-size:11.5px;color:var(--text-3);margin-top:2px;">Select product, sourced lot, quantity & rate · Real-time individual profit badge per row</div>
+                  </div>
+                  <span class="badge badge-neutral" id="ms-items-badge" style="font-size:11px;font-weight:700">1 Item</span>
+                </div>
+
+                <!-- Dynamic Items Container -->
+                <div id="ms-items-container" style="display:flex;flex-direction:column;gap:10px;">
+                  <!-- Dynamic rows generated by app.js -->
+                </div>
+
+                <!-- Add More Item Action -->
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:8px;">
+                  <button type="button" class="btn btn-secondary" id="btn-add-more-item" onclick="addMakeSaleRow()" style="font-weight:700;height:38px;padding:0 16px;display:inline-flex;align-items:center;gap:6px;border:1.5px solid var(--primary);color:var(--primary);background:rgba(26,50,98,0.04);">
+                    <i data-lucide="plus" style="width:15px;height:15px;"></i> Add More Item
+                  </button>
+                  <span style="font-size:12px;color:var(--text-3);" id="ms-items-count-summary">1 item ready</span>
                 </div>
               </div>
             </form>
           </div>
 
           <!-- RIGHT: Live Order Receipt Ticket Card -->
-          <div class="card ms-card ms-ticket-card">
+          <div class="card ms-card ms-ticket-card" style="position:sticky;top:20px;align-self:start;">
             <div class="ms-ticket-header">
               <div class="ms-ticket-brand">
                 <span class="ms-ticket-title">Invoice Draft</span>
                 <span class="ms-ticket-id" id="ms-invoice-preview">#S041</span>
               </div>
-              <span class="ms-ticket-badge">Live Counter</span>
+              <span class="ms-ticket-badge" id="ms-ticket-badge">1 Item</span>
             </div>
 
             <div class="ms-ticket-body">
-              <div class="ms-ticket-product" id="ms-ticket-prod-name">Select product above</div>
-              <div class="ms-ticket-qty-rate" id="ms-ticket-qty-rate">—</div>
+              <!-- Live Line Items Summary in Draft Ticket -->
+              <div id="ms-ticket-items-list" style="max-height:190px;overflow-y:auto;display:flex;flex-direction:column;gap:5px;margin-bottom:8px;padding-right:2px;">
+                <!-- Dynamically populated line items -->
+              </div>
 
-              <div class="ms-ticket-divider"></div>
+              <div class="ms-ticket-divider" style="margin:8px 0;"></div>
 
               <div class="ms-ticket-row">
-                <span class="ms-ticket-lbl">Seller Lot</span>
-                <span class="ms-ticket-val" id="ms-ticket-lot" style="font-size:11.5px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">—</span>
+                <span class="ms-ticket-lbl">Total Volume</span>
+                <span class="ms-ticket-val" id="ms-ticket-weight">0 KG (1 item)</span>
               </div>
               <div class="ms-ticket-row">
                 <span class="ms-ticket-lbl">Customer Tier</span>
@@ -344,8 +324,8 @@
                 <span class="ms-ticket-val muted" id="ms-cost">₹0.00</span>
               </div>
               <div class="ms-ticket-row ms-ticket-profit-row">
-                <span class="ms-ticket-lbl">Realized Margin</span>
-                <span class="ms-ticket-profit" id="ms-profit">₹0.00</span>
+                <span class="ms-ticket-lbl">Realized Margin (Mixed P&L)</span>
+                <span class="ms-ticket-profit" id="ms-profit" style="font-size:13px;font-weight:800;">₹0.00 (0.0%)</span>
               </div>
 
               <div class="ms-ticket-total-wrap">
@@ -359,7 +339,7 @@
                 <i data-lucide="rotate-ccw"></i> Reset
               </button>
               <button type="button" class="btn btn-primary ms-btn-record" id="btn-make-sale-submit" onclick="handleMakeSaleSubmit()">
-                <i data-lucide="check-circle-2"></i> Record Sale (Enter)
+                <i data-lucide="check-circle-2"></i> <span id="ms-submit-btn-label">Record Sale (Enter)</span>
               </button>
             </div>
           </div>
@@ -1859,9 +1839,9 @@
 <!-- ═══════════════════════════════════════
      SCRIPTS
      ═══════════════════════════════════════ -->
-<script src="js/data.js?v=22.0"></script>
-<script src="js/charts.js?v=22.0"></script>
-<script src="js/app.js?v=22.0"></script>
+<script src="js/data.js?v=28.0"></script>
+<script src="js/charts.js?v=28.0"></script>
+<script src="js/app.js?v=28.0"></script>
 
 <!-- Post-load init: populate selects & tables — runs AFTER Google Sheets data is loaded -->
 <script>

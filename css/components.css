@@ -1666,7 +1666,7 @@ select.input.is-invalid {
   grid-template-columns: 1fr 390px;
   gap: var(--sp-5);
   margin-bottom: var(--section-gap);
-  align-items: stretch;
+  align-items: start;
 }
 
 @media (max-width: 1200px) {
@@ -1776,17 +1776,17 @@ select.input.is-invalid {
   font-variant-numeric: tabular-nums;
 }
 
-/* Payment Pills */
+/* Payment Pills Grid — Strict 38px Height */
 .ms-payment-pills {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 5px;
+  height: 38px;
 }
 
 .ms-pay-pill {
-  flex: 1;
-  min-width: 70px;
-  padding: 8px 10px;
+  height: 38px;
+  padding: 0 6px;
   font-size: 12px;
   font-weight: 600;
   border: 1px solid var(--border-md);
@@ -1799,11 +1799,14 @@ select.input.is-invalid {
   justify-content: center;
   gap: 5px;
   transition: all var(--t-fast);
+  white-space: nowrap;
+  box-sizing: border-box;
 }
 
 .ms-pay-pill i {
   width: 14px;
   height: 14px;
+  flex-shrink: 0;
 }
 
 .ms-pay-pill:hover {
@@ -1819,11 +1822,160 @@ select.input.is-invalid {
   box-shadow: 0 1px 3px rgba(26, 50, 98, 0.25);
 }
 
-/* Ticket Card */
+/* ─────────────────────────────────────────────────────────────
+   MULTI-ITEM PRODUCE ROW — RIGID GRID & 38PX CONTROL HEIGHTS
+   ───────────────────────────────────────────────────────────── */
+.ms-item-row {
+  display: grid;
+  grid-template-columns: 1.45fr 1.6fr 0.95fr 1.05fr 1.35fr 36px;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  background: var(--surface-1);
+  border: 1px solid var(--border-md);
+  border-radius: var(--r-lg);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  transition: border-color var(--t-fast), box-shadow var(--t-fast);
+}
+
+.ms-item-row:hover {
+  border-color: var(--border-strong);
+}
+
+.ms-item-row:focus-within {
+  border-color: var(--primary);
+  box-shadow: 0 2px 8px rgba(26, 50, 98, 0.08);
+}
+
+.ms-col-header {
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.ms-col-header .form-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  margin: 0;
+  color: var(--text-2);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.ms-col-header .ms-stock-chip {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ms-col-header .ms-stock-chip.out {
+  color: var(--danger);
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.25);
+}
+
+.ms-col-header .ms-stock-chip.low {
+  color: var(--warning);
+  background: rgba(245, 158, 11, 0.08);
+  border-color: rgba(245, 158, 11, 0.25);
+}
+
+.ms-col-header .ms-stock-chip.ok {
+  color: var(--success);
+  background: rgba(16, 185, 129, 0.08);
+  border-color: rgba(16, 185, 129, 0.25);
+}
+
+/* Line Total & Profit Box — Strict 38px Height */
+.ms-line-total-box {
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-md);
+  border-radius: var(--r-md);
+  box-sizing: border-box;
+}
+
+.ms-line-subtotal {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 12.5px;
+  color: var(--text-1);
+  letter-spacing: -0.01em;
+}
+
+.ms-line-profit {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: var(--r-sm);
+  background: var(--surface-3);
+  color: var(--text-3);
+  white-space: nowrap;
+}
+
+.ms-line-profit.pos {
+  color: #047857;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.ms-line-profit.neg {
+  color: #B91C1C;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+/* Delete Row Button */
+.ms-btn-del-wrap {
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ms-btn-del-row {
+  height: 38px;
+  width: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  color: var(--danger);
+  cursor: pointer;
+  transition: all var(--t-fast);
+}
+
+.ms-btn-del-row:hover {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.2);
+}
+
+.ms-row-qty .has-suffix {
+  padding-right: 40px !important;
+}
+
+/* Ticket Card — Sticky POS Receipt Card */
 .ms-ticket-card {
   background: linear-gradient(180deg, #FFFFFF 0%, #FAFAF8 100%);
   border: 1px solid var(--border-md);
-  justify-content: space-between;
+  position: sticky;
+  top: 20px;
+  align-self: start;
 }
 
 .ms-ticket-header {

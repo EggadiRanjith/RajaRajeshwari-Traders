@@ -18,6 +18,7 @@ const STATE = {
   suppliersSearch: '',
   expensesSearch: '', expensesPage: 1,
   wastageSearch: '', wastagePage: 1,
+  counterCart: [],
 };
 
 /* ──────────────────────────────────────────────
@@ -313,11 +314,25 @@ function renderPage(page) {
 /* ──────────────────────────────────────────────
    PAGE: MAKE A SALE (DIRECT BILLING CONTROLLER)
    ────────────────────────────────────────────── */
+let _makeSaleRowSeq = 0;
+let _makeSaleActiveRowIds = [];
+
 function renderMakeSalePage() {
-  populateMakeSaleProducts();
+  const dateInput = document.getElementById('ms-date');
+  if (dateInput && !dateInput.value) dateInput.value = RT.todayStr();
+
   initMakeSalePaymentPills();
   renderMakeSaleLast10();
-  handleMakeSaleProductChange();
+
+  const container = document.getElementById('ms-items-container');
+  if (container && (!container.children.length || _makeSaleActiveRowIds.length === 0)) {
+    container.innerHTML = '';
+    _makeSaleRowSeq = 0;
+    _makeSaleActiveRowIds = [];
+    addMakeSaleRow();
+  } else {
+    calcMakeSaleRows();
+  }
   if (window.lucide) lucide.createIcons();
 }
 
@@ -330,113 +345,6 @@ function initMakeSalePaymentPills() {
       if (hidden) hidden.value = pill.dataset.pay;
     };
   });
-}
-
-function populateMakeSaleProducts() {
-  const sel = document.getElementById('ms-product');
-  if (!sel) return;
-  const currentVal = sel.value;
-  const opts = RT.PRODUCTS.map(p => {
-    const status = RT.getStockStatus(p);
-    const badge = status === 'out' ? 'OUT OF STOCK' : `${RT.fmtNum(p.currentStock)} ${p.unit} in stock`;
-    return `<option value="${p.id}" ${status === 'out' ? 'disabled' : ''}>${p.name} (${p.unit}) — ${badge}</option>`;
-  }).join('');
-  sel.innerHTML = '<option value="">Select product to sell…</option>' + opts;
-  if (currentVal) sel.value = currentVal;
-}
-
-function handleMakeSaleProductChange() {
-  const sel = document.getElementById('ms-product');
-  const productId = (sel?.value || '').trim();
-  const p = RT.getProductById(productId);
-
-  const unitLabel = document.getElementById('ms-unit-label');
-  if (unitLabel) unitLabel.textContent = p ? p.unit : 'KG';
-
-  const stockBadge = document.getElementById('ms-stock-badge');
-  if (stockBadge) {
-    if (p) {
-      stockBadge.textContent = `Stock: ${RT.fmtNum(p.currentStock)} ${p.unit}`;
-      stockBadge.style.color = p.currentStock <= p.reorderLevel ? 'var(--warning)' : 'var(--text-2)';
-    } else {
-      stockBadge.textContent = 'Stock: --';
-      stockBadge.style.color = 'var(--text-3)';
-    }
-  }
-
-  // Populate active seller lots
-  const lotSel = document.getElementById('ms-lot');
-  if (lotSel) {
-    if (!p) {
-      lotSel.innerHTML = '<option value="">Select seller lot…</option>';
-      setEl('ms-lot-badge', 'Lot: --');
-    } else {
-      const lots = RT.getActiveLots(productId);
-      if (!lots.length) {
-        lotSel.innerHTML = '<option value="">Direct Stock (Default Lot)</option>';
-        setEl('ms-lot-badge', `Avail: ${RT.fmtNum(p.currentStock)} ${p.unit}`);
-      } else {
-        lotSel.innerHTML = lots.map(lot => {
-          const sup = RT.getSupplierById(lot.supplierId);
-          const supName = sup ? sup.name : (lot.supplierName || 'Direct Sourcing');
-          const supId = lot.supplierId || (sup ? sup.id : '');
-          const supLabel = supId ? `${supName} (${supId})` : supName;
-          const lotDate = lot.date ? RT.fmtDate(lot.date) : '';
-          const tRate = lot.targetRate || (lot.rate * 1.25);
-          const avail = lot.remainingQty !== undefined ? lot.remainingQty : lot.quantity;
-          return `<option value="${lot.id}">
-            ${supLabel} · Lot #${lot.id} · ${lotDate} (Avail: ${RT.fmtNum(avail)} ${p.unit} · Target: ₹${Number(tRate).toFixed(2)})
-          </option>`;
-        }).join('');
-      }
-    }
-  }
-
-  handleMakeSaleLotChange();
-}
-
-function handleMakeSaleLotChange() {
-  const lotSel = document.getElementById('ms-lot');
-  const lotId = lotSel?.value;
-  const lot = RT.getLotById(lotId);
-  const p = RT.getProductById((document.getElementById('ms-product')?.value || '').trim());
-
-  const lotBadge = document.getElementById('ms-lot-badge');
-  const targetBadge = document.getElementById('ms-target-rate-badge');
-  const rateInput = document.getElementById('ms-rate');
-
-  if (lot) {
-    const sup = RT.getSupplierById(lot.supplierId);
-    const supName = sup ? sup.name : (lot.supplierName || 'Supplier');
-    const supId = lot.supplierId || (sup ? sup.id : '');
-    const lotDate = lot.date ? ` · ${RT.fmtDate(lot.date)}` : '';
-    const avail = lot.remainingQty !== undefined ? lot.remainingQty : lot.quantity;
-    if (lotBadge) lotBadge.textContent = `Lot Avail: ${RT.fmtNum(avail)} ${p ? p.unit : 'KG'}`;
-    const targetPrice = lot.targetRate || Math.round(lot.rate * 1.25);
-    if (targetBadge) targetBadge.textContent = `Target: ₹${targetPrice.toFixed(2)}`;
-
-    if (rateInput && (!rateInput.value || rateInput.dataset.autoPopulated === 'true')) {
-      rateInput.value = targetPrice.toFixed(2);
-      rateInput.dataset.autoPopulated = 'true';
-    }
-    setEl('ms-ticket-lot', `${supName}${supId ? ` (${supId})` : ''} · #${lot.id}${lotDate}`);
-  } else {
-    if (lotBadge) lotBadge.textContent = p ? `Avail: ${RT.fmtNum(p.currentStock)} ${p.unit}` : 'Lot: --';
-    const targetPrice = p ? Math.round(p.avgCost * 1.25) : 0;
-    if (targetBadge) targetBadge.textContent = p ? `Target: ₹${targetPrice.toFixed(2)}` : 'Target: --';
-    if (rateInput && (!rateInput.value || rateInput.dataset.autoPopulated === 'true') && p) {
-      rateInput.value = targetPrice.toFixed(2);
-      rateInput.dataset.autoPopulated = 'true';
-    }
-    setEl('ms-ticket-lot', p ? 'Direct Mandi Stock' : '—');
-  }
-
-  if (rateInput && !rateInput.dataset.listenerAttached) {
-    rateInput.addEventListener('input', () => { rateInput.dataset.autoPopulated = 'false'; });
-    rateInput.dataset.listenerAttached = 'true';
-  }
-
-  updateMakeSaleCalc();
 }
 
 function handleCustomerTypeChange() {
@@ -454,56 +362,381 @@ function handleCustomerTypeChange() {
   setEl('ms-ticket-tier', type.toUpperCase());
 }
 
-function updateMakeSaleCalc() {
-  const p = RT.getProductById((document.getElementById('ms-product')?.value || '').trim());
-  const lot = RT.getLotById(document.getElementById('ms-lot')?.value);
-  const qty = parseFloat(document.getElementById('ms-qty')?.value) || 0;
-  const rateInput = document.getElementById('ms-rate');
-  const rate = parseFloat(rateInput?.value) || 0;
+function getProductOptionsHtml(selectedId = '') {
+  return '<option value="">Select produce to sell…</option>' +
+    RT.PRODUCTS.map(p => {
+      const stock = Number(p.currentStock) || 0;
+      const isOut = stock <= 0;
+      const stockStr = isOut ? `OUT OF STOCK — 0 ${p.unit}` : `${RT.fmtNum(stock)} ${p.unit}`;
+      const disabledAttr = isOut ? 'disabled' : '';
+      const selectedAttr = (p.id === selectedId && !isOut) ? 'selected' : '';
+      return `<option value="${p.id}" ${disabledAttr} ${selectedAttr} style="${isOut ? 'color:var(--text-3);background:var(--surface-2);' : ''}">${p.name} (${stockStr})</option>`;
+    }).join('');
+}
 
-  const lotCost = lot ? lot.rate : (p ? p.avgCost : 0);
-  const targetRate = lot ? (lot.targetRate || lotCost * 1.25) : (p ? p.avgCost * 1.25 : 0);
+function addMakeSaleRow(prefillData = null) {
+  const container = document.getElementById('ms-items-container');
+  if (!container) return;
 
-  const subtotal = qty * rate;
-  const estCost = qty * lotCost;
-  const estProfit = subtotal - estCost;
+  _makeSaleRowSeq++;
+  const rowId = 'row_' + _makeSaleRowSeq;
+  _makeSaleActiveRowIds.push(rowId);
 
-  // Real-time variance vs fixed target price & loss/profit indication
-  const varBox = document.getElementById('ms-variance-tag');
-  if (varBox && rate > 0 && targetRate > 0) {
-    const diff = rate - targetRate;
-    const diffPct = ((diff / targetRate) * 100).toFixed(1);
-    const unitMargin = rate - lotCost;
+  const rowEl = document.createElement('div');
+  rowEl.className = 'ms-item-row';
+  rowEl.id = `ms-item-row-${rowId}`;
+  rowEl.dataset.rowId = rowId;
+  rowEl.style.cssText = 'display:grid;grid-template-columns:minmax(140px,1.4fr) minmax(160px,1.6fr) minmax(85px,0.9fr) minmax(95px,1.05fr) minmax(130px,1.3fr) 34px;gap:8px;align-items:start;padding:8px 10px;background:var(--surface-1);border:1px solid var(--border-md);border-radius:8px;margin-bottom:6px;box-sizing:border-box;';
 
-    if (rate <= lotCost) {
-      const lossPerKg = lotCost - rate;
-      const lossPct = lotCost > 0 ? ((lossPerKg / lotCost) * 100).toFixed(1) : '0.0';
-      varBox.innerHTML = `<span class="badge-loss-alert"><i data-lucide="alert-triangle"></i> LOSS ALERT: -₹${lossPerKg.toFixed(2)} / ${p ? p.unit : 'KG'} (-${lossPct}%)</span>`;
-    } else if (Math.abs(diff) < 0.01) {
-      const marginPct = ((unitMargin / rate) * 100).toFixed(1);
-      varBox.innerHTML = `<span class="badge-at-target"><i data-lucide="check"></i> At Fixed Target Price (+${marginPct}% margin)</span>`;
-    } else if (diff > 0) {
-      varBox.innerHTML = `<span class="badge-above-target"><i data-lucide="trending-up"></i> +₹${diff.toFixed(2)} (+${diffPct}% Above Target) · Profit: +₹${unitMargin.toFixed(2)}/${p ? p.unit : 'KG'}</span>`;
-    } else {
-      varBox.innerHTML = `<span class="badge-below-target"><i data-lucide="trending-down"></i> -₹${Math.abs(diff).toFixed(2)} (${diffPct}% Below Target) · Profit: +₹${unitMargin.toFixed(2)}/${p ? p.unit : 'KG'}</span>`;
-    }
-    if (window.lucide) lucide.createIcons({ nodes: [varBox] });
-  } else if (varBox) {
-    varBox.innerHTML = '';
+  rowEl.innerHTML = `
+    <!-- Product -->
+    <div class="form-group" style="margin-bottom:0">
+      <div class="ms-col-header" style="height:18px;display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+        <label class="form-label" style="font-size:11px;font-weight:700;margin:0">Produce <span class="required">*</span></label>
+        <span class="ms-stock-chip" id="ms-stock-${rowId}" style="font-size:10px;padding:1px 5px;">Stock: --</span>
+      </div>
+      <select class="input ms-row-product" id="ms-product-${rowId}" required onchange="handleRowProductChange('${rowId}')" style="height:36px;box-sizing:border-box;">
+        ${getProductOptionsHtml(prefillData?.productId || '')}
+      </select>
+    </div>
+
+    <!-- Sourced Lot -->
+    <div class="form-group" style="margin-bottom:0">
+      <div class="ms-col-header" style="height:18px;display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+        <label class="form-label" style="font-size:11px;font-weight:700;margin:0">Seller Lot <span class="required">*</span></label>
+        <span class="ms-stock-chip" id="ms-lot-badge-${rowId}" style="font-size:10px;color:var(--primary);font-weight:700;padding:1px 5px;">Lot: --</span>
+      </div>
+      <select class="input ms-row-lot" id="ms-lot-${rowId}" required onchange="handleRowLotChange('${rowId}')" style="height:36px;box-sizing:border-box;">
+        <option value="">Select seller lot…</option>
+      </select>
+    </div>
+
+    <!-- Quantity -->
+    <div class="form-group ms-row-qty" style="margin-bottom:0">
+      <div class="ms-col-header" style="height:18px;display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+        <label class="form-label" style="font-size:11px;font-weight:700;margin:0">Quantity <span class="required">*</span></label>
+        <span class="ms-stock-chip" id="ms-unit-chip-${rowId}" style="font-size:10px;padding:1px 5px;">Unit: KG</span>
+      </div>
+      <div class="input-wrap">
+        <input class="input has-suffix" type="number" id="ms-qty-${rowId}" placeholder="0.00" step="any" min="0.1" required oninput="calcMakeSaleRows()" value="${prefillData?.qty || ''}" style="height:36px;box-sizing:border-box;padding-right:36px;">
+        <span class="input-suffix ms-row-unit" id="ms-unit-${rowId}">KG</span>
+      </div>
+    </div>
+
+    <!-- Rate -->
+    <div class="form-group" style="margin-bottom:0">
+      <div class="ms-col-header" style="height:18px;display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+        <label class="form-label" style="font-size:11px;font-weight:700;margin:0">Selling Rate <span class="required">*</span></label>
+        <span class="ms-stock-chip" id="ms-target-${rowId}" style="font-size:10px;padding:1px 5px;">Tgt: --</span>
+      </div>
+      <div class="input-wrap">
+        <span class="input-prefix">₹</span>
+        <input class="input has-prefix ms-row-rate" type="number" id="ms-rate-${rowId}" placeholder="0.00" step="0.50" min="0.01" required oninput="calcMakeSaleRows()" value="${prefillData?.rate || ''}" style="height:36px;box-sizing:border-box;">
+      </div>
+    </div>
+
+    <!-- Line Total & Individual Profit Badge -->
+    <div class="form-group" style="margin-bottom:0">
+      <div class="ms-col-header" style="height:18px;display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+        <label class="form-label" style="font-size:11px;font-weight:700;margin:0">Line Total & Profit</label>
+        <span class="ms-stock-chip" id="ms-margin-badge-${rowId}" style="font-size:10px;padding:1px 5px;">Est. Margin</span>
+      </div>
+      <div class="ms-line-total-box" id="ms-total-box-${rowId}" style="height:36px;display:flex;align-items:center;justify-content:space-between;padding:0 8px;background:var(--surface-2);border:1px solid var(--border-md);border-radius:6px;box-sizing:border-box;">
+        <span class="ms-line-subtotal" id="ms-subtotal-${rowId}" style="font-family:var(--font-mono);font-weight:700;font-size:12px;color:var(--text-1);">₹0.00</span>
+        <span class="ms-line-profit" id="ms-profit-${rowId}" style="font-family:var(--font-mono);font-weight:700;font-size:11px;color:var(--text-3);">₹0 (0%)</span>
+      </div>
+    </div>
+
+    <!-- Remove Row Button -->
+    <div class="ms-btn-del-wrap" style="height:36px;margin-top:22px;display:flex;align-items:center;justify-content:center;">
+      <button type="button" class="ms-btn-del-row" onclick="removeMakeSaleRow('${rowId}')" id="ms-del-${rowId}" style="height:32px;width:32px;display:${_makeSaleActiveRowIds.length > 1 ? 'flex' : 'none'};align-items:center;justify-content:center;background:none;border:none;color:#EF4444;cursor:pointer;border-radius:6px;" title="Remove this produce line">
+        <i data-lucide="trash-2" style="width:15px;height:15px;"></i>
+      </button>
+    </div>
+  `;
+
+  container.appendChild(rowEl);
+  if (window.lucide) lucide.createIcons({ nodes: [rowEl] });
+
+  _syncDeleteButtonsVisibility();
+
+  if (prefillData?.productId) {
+    handleRowProductChange(rowId);
   }
 
-  // Update invoice draft
-  const nextId = 'S' + String(RT.SALES.length + 41).padStart(3, '0');
-  setEl('ms-invoice-preview', `#${nextId}`);
-  setEl('ms-ticket-prod-name', p ? `${p.name} (${p.unit})` : 'Select product to begin');
-  setEl('ms-ticket-qty-rate', p && qty ? `${RT.fmtNum(qty)} ${p.unit} × ${RT.fmt(rate, 2)} / ${p.unit}` : 'Enter quantity and rate');
-  setEl('ms-subtotal', RT.fmt(subtotal, 2));
-  setEl('ms-cost', RT.fmt(estCost, 2));
-  setEl('ms-profit', `${estProfit >= 0 ? '+' : ''}${RT.fmt(estProfit, 2)} (${subtotal > 0 ? ((estProfit / subtotal) * 100).toFixed(1) : 0}%)`);
-  setEl('ms-total-amt', RT.fmt(subtotal, 2));
+  calcMakeSaleRows();
+  return rowId;
+}
 
-  const profitEl = document.getElementById('ms-profit');
-  if (profitEl) profitEl.style.color = estProfit >= 0 ? 'var(--success)' : 'var(--danger)';
+function _syncDeleteButtonsVisibility() {
+  const canDelete = _makeSaleActiveRowIds.length > 1;
+  _makeSaleActiveRowIds.forEach(id => {
+    const btn = document.getElementById(`ms-del-${id}`);
+    if (btn) btn.style.display = canDelete ? 'flex' : 'none';
+  });
+  const countBadge = document.getElementById('ms-items-badge');
+  if (countBadge) countBadge.textContent = `${_makeSaleActiveRowIds.length} Item${_makeSaleActiveRowIds.length > 1 ? 's' : ''}`;
+  const countSummary = document.getElementById('ms-items-count-summary');
+  if (countSummary) countSummary.textContent = `${_makeSaleActiveRowIds.length} produce line${_makeSaleActiveRowIds.length > 1 ? 's' : ''} in bill`;
+}
+
+function removeMakeSaleRow(rowId) {
+  if (_makeSaleActiveRowIds.length <= 1) return;
+  const rowEl = document.getElementById(`ms-item-row-${rowId}`);
+  if (rowEl) rowEl.remove();
+  _makeSaleActiveRowIds = _makeSaleActiveRowIds.filter(id => id !== rowId);
+  _syncDeleteButtonsVisibility();
+  calcMakeSaleRows();
+}
+
+function handleRowProductChange(rowId) {
+  const prodSel = document.getElementById(`ms-product-${rowId}`);
+  const lotSel  = document.getElementById(`ms-lot-${rowId}`);
+  const stockBadge = document.getElementById(`ms-stock-${rowId}`);
+  const unitLabel  = document.getElementById(`ms-unit-${rowId}`);
+  const unitChip   = document.getElementById(`ms-unit-chip-${rowId}`);
+  const productId = prodSel?.value || '';
+  const p = RT.getProductById(productId);
+
+  // Hard guard: 0-stock check
+  if (p && (Number(p.currentStock) || 0) <= 0) {
+    showToast(`Cannot sell ${p.name}: Currently out of stock (0 ${p.unit})!`, 'warning');
+    if (prodSel) prodSel.value = '';
+    if (stockBadge) {
+      stockBadge.textContent = 'Out of Stock';
+      stockBadge.className = 'ms-stock-chip out';
+    }
+    if (lotSel) {
+      lotSel.innerHTML = '<option value="" disabled selected>Produce Out of Stock</option>';
+    }
+    setEl(`ms-lot-badge-${rowId}`, 'Lot: --');
+    setEl(`ms-target-${rowId}`, 'Tgt: --');
+    calcMakeSaleRows();
+    return;
+  }
+
+  if (unitLabel) unitLabel.textContent = p ? p.unit : 'KG';
+  if (unitChip) unitChip.textContent = p ? `Unit: ${p.unit}` : 'Unit: KG';
+
+  if (stockBadge) {
+    if (p) {
+      const stock = Number(p.currentStock) || 0;
+      stockBadge.textContent = `Stock: ${RT.fmtNum(stock)} ${p.unit}`;
+      if (stock <= 0) {
+        stockBadge.className = 'ms-stock-chip out';
+      } else if (stock <= p.reorderLevel) {
+        stockBadge.className = 'ms-stock-chip low';
+      } else {
+        stockBadge.className = 'ms-stock-chip ok';
+      }
+    } else {
+      stockBadge.textContent = 'Stock: --';
+      stockBadge.className = 'ms-stock-chip';
+    }
+  }
+
+  if (lotSel) {
+    if (!p) {
+      lotSel.innerHTML = '<option value="">Select seller lot…</option>';
+      setEl(`ms-lot-badge-${rowId}`, 'Lot: --');
+    } else {
+      const allLots = RT.getActiveLots(productId);
+      const activeWithStock = allLots.filter(lot => {
+        const avail = lot.remainingQty !== undefined ? Number(lot.remainingQty) : Number(lot.quantity);
+        return avail > 0;
+      });
+
+      if (!activeWithStock.length) {
+        if ((Number(p.currentStock) || 0) > 0) {
+          lotSel.innerHTML = `<option value="">Direct Stock (${RT.fmtNum(p.currentStock)} ${p.unit})</option>`;
+          setEl(`ms-lot-badge-${rowId}`, `Avail: ${RT.fmtNum(p.currentStock)} ${p.unit}`);
+        } else {
+          lotSel.innerHTML = '<option value="" disabled selected>No Active Stock Available</option>';
+          setEl(`ms-lot-badge-${rowId}`, 'Depleted');
+        }
+      } else {
+        lotSel.innerHTML = activeWithStock.map(lot => {
+          const sup = RT.getSupplierById(lot.supplierId);
+          const supName = sup ? sup.name : (lot.supplierName || 'Direct Sourcing');
+          const supId = lot.supplierId || (sup ? sup.id : '');
+          const supLabel = supId ? `${supName} (${supId})` : supName;
+          const lotDate = lot.date ? RT.fmtDate(lot.date) : '';
+          const tRate = lot.targetRate || (lot.rate * 1.25);
+          const avail = lot.remainingQty !== undefined ? Number(lot.remainingQty) : Number(lot.quantity);
+          return `<option value="${lot.id}">
+            ${supLabel} · Lot #${lot.id} · ${lotDate} (Avail: ${RT.fmtNum(avail)} ${p.unit} · Target: ₹${Number(tRate).toFixed(2)})
+          </option>`;
+        }).join('');
+      }
+    }
+  }
+
+  handleRowLotChange(rowId);
+}
+
+function handleRowLotChange(rowId) {
+  const lotSel = document.getElementById(`ms-lot-${rowId}`);
+  const lotId = lotSel?.value;
+  const lot = RT.getLotById(lotId);
+  const prodSel = document.getElementById(`ms-product-${rowId}`);
+  const p = RT.getProductById(prodSel?.value || '');
+
+  const lotBadge = document.getElementById(`ms-lot-badge-${rowId}`);
+  const targetBadge = document.getElementById(`ms-target-${rowId}`);
+  const rateInput = document.getElementById(`ms-rate-${rowId}`);
+
+  if (lot) {
+    const avail = lot.remainingQty !== undefined ? Number(lot.remainingQty) : Number(lot.quantity);
+    if (lotBadge) lotBadge.textContent = `Avail: ${RT.fmtNum(avail)} ${p ? p.unit : 'KG'}`;
+    const targetPrice = lot.targetRate || Math.round(lot.rate * 1.25);
+    if (targetBadge) targetBadge.textContent = `Target: ₹${targetPrice.toFixed(2)}`;
+
+    if (rateInput && (!rateInput.value || rateInput.dataset.autoPopulated === 'true')) {
+      rateInput.value = targetPrice.toFixed(2);
+      rateInput.dataset.autoPopulated = 'true';
+    }
+  } else {
+    if (lotBadge) lotBadge.textContent = p ? `Avail: ${RT.fmtNum(p.currentStock)} ${p.unit}` : 'Lot: --';
+    const targetPrice = p ? Math.round(p.avgCost * 1.25) : 0;
+    if (targetBadge) targetBadge.textContent = p ? `Target: ₹${targetPrice.toFixed(2)}` : 'Target: --';
+    if (rateInput && (!rateInput.value || rateInput.dataset.autoPopulated === 'true') && p) {
+      rateInput.value = targetPrice.toFixed(2);
+      rateInput.dataset.autoPopulated = 'true';
+    }
+  }
+
+  if (rateInput && !rateInput.dataset.listenerAttached) {
+    rateInput.addEventListener('input', () => { rateInput.dataset.autoPopulated = 'false'; });
+    rateInput.dataset.listenerAttached = 'true';
+  }
+
+  calcMakeSaleRows();
+}
+
+function calcMakeSaleRows() {
+  let grandSubtotal = 0;
+  let grandCost     = 0;
+  let grandQty      = 0;
+  let validItemsCount = 0;
+  const itemsSummaryList = [];
+
+  _makeSaleActiveRowIds.forEach(rowId => {
+    const p = RT.getProductById((document.getElementById(`ms-product-${rowId}`)?.value || '').trim());
+    const lot = RT.getLotById(document.getElementById(`ms-lot-${rowId}`)?.value);
+    const qty = parseFloat(document.getElementById(`ms-qty-${rowId}`)?.value) || 0;
+    const rate = parseFloat(document.getElementById(`ms-rate-${rowId}`)?.value) || 0;
+
+    const lotCost = lot ? lot.rate : (p ? p.avgCost : 0);
+    const rowSubtotal = qty * rate;
+    const rowCost = qty * lotCost;
+    const rowProfit = rowSubtotal - rowCost;
+    const rowMarginPct = rowSubtotal > 0 ? ((rowProfit / rowSubtotal) * 100).toFixed(1) : '0.0';
+
+    const subtotalEl = document.getElementById(`ms-subtotal-${rowId}`);
+    const profitEl   = document.getElementById(`ms-profit-${rowId}`);
+    const marginBadge = document.getElementById(`ms-margin-badge-${rowId}`);
+
+    if (subtotalEl) subtotalEl.textContent = RT.fmt(rowSubtotal, 2);
+
+    if (profitEl) {
+      if (qty > 0 && rate > 0) {
+        if (rowProfit >= 0) {
+          profitEl.className = 'ms-line-profit pos';
+          profitEl.textContent = `+${RT.fmt(rowProfit, 0)} (+${rowMarginPct}%)`;
+        } else {
+          profitEl.className = 'ms-line-profit neg';
+          profitEl.textContent = `-${RT.fmt(Math.abs(rowProfit), 0)} (${rowMarginPct}%)`;
+        }
+      } else {
+        profitEl.className = 'ms-line-profit';
+        profitEl.textContent = '₹0 (0%)';
+      }
+    }
+
+    if (marginBadge) {
+      if (qty > 0 && rate > 0) {
+        marginBadge.textContent = rowMarginPct + '%';
+        marginBadge.className = 'ms-stock-chip ' + (rowProfit >= 0 ? 'ok' : 'out');
+      } else {
+        marginBadge.textContent = 'Est. Margin';
+        marginBadge.className = 'ms-stock-chip';
+      }
+    }
+
+    if (p && qty > 0) {
+      grandSubtotal += rowSubtotal;
+      grandCost     += rowCost;
+      grandQty      += qty;
+      validItemsCount++;
+      itemsSummaryList.push({
+        name: p.name,
+        unit: p.unit,
+        qty,
+        rate,
+        subtotal: rowSubtotal,
+        profit: rowProfit,
+        marginPct: rowMarginPct
+      });
+    }
+  });
+
+  const grandProfit = grandSubtotal - grandCost;
+  const mixedMarginPct = grandSubtotal > 0 ? ((grandProfit / grandSubtotal) * 100).toFixed(1) : '0.0';
+
+  // Update Right-Hand Ticket Card (Draft & Mixed P&L)
+  const nextInvoiceNum = RT.SALES.length + 1;
+  const nextId = 'S' + String(nextInvoiceNum).padStart(3, '0');
+  setEl('ms-invoice-preview', `#${nextId}`);
+  setEl('ms-ticket-badge', `${validItemsCount || _makeSaleActiveRowIds.length} Item${(validItemsCount || _makeSaleActiveRowIds.length) > 1 ? 's' : ''}`);
+
+  const ticketList = document.getElementById('ms-ticket-items-list');
+  if (ticketList) {
+    if (itemsSummaryList.length === 0) {
+      ticketList.innerHTML = `
+        <div style="font-size:12.5px;color:var(--text-3);padding:10px 0;text-align:center;">
+          Select product & enter quantity on the left
+        </div>
+      `;
+    } else {
+      ticketList.innerHTML = itemsSummaryList.map(it => `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 8px;background:var(--surface-2);border:1px solid var(--border-subtle);border-radius:6px;font-size:12px;">
+          <div>
+            <div style="font-weight:700;color:var(--text-1);">${it.name}</div>
+            <div style="color:var(--text-3);font-size:11px;">${RT.fmtNum(it.qty)} ${it.unit} × ${RT.fmt(it.rate, 2)}</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-family:var(--font-mono);font-weight:700;color:var(--text-1);">${RT.fmt(it.subtotal, 2)}</div>
+            <div style="font-size:10.5px;font-weight:700;color:${it.profit >= 0 ? 'var(--success)' : 'var(--danger)'};">
+              ${it.profit >= 0 ? '+' : ''}${RT.fmt(it.profit, 0)} (${it.marginPct}%)
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+  }
+
+  setEl('ms-ticket-weight', `${RT.fmtNum(grandQty)} KG (${validItemsCount} item${validItemsCount !== 1 ? 's' : ''})`);
+  setEl('ms-subtotal', RT.fmt(grandSubtotal, 2));
+  setEl('ms-cost', RT.fmt(grandCost, 2));
+
+  const grandProfitEl = document.getElementById('ms-profit');
+  if (grandProfitEl) {
+    if (grandSubtotal > 0) {
+      if (grandProfit >= 0) {
+        grandProfitEl.innerHTML = `<span style="color:var(--success)">+${RT.fmt(grandProfit, 2)} (+${mixedMarginPct}% Mixed Profit)</span>`;
+      } else {
+        grandProfitEl.innerHTML = `<span style="color:var(--danger)">-${RT.fmt(Math.abs(grandProfit), 2)} (${mixedMarginPct}% Mixed Loss)</span>`;
+      }
+    } else {
+      grandProfitEl.innerHTML = '<span style="color:var(--text-3)">₹0.00 (0.0%)</span>';
+    }
+  }
+
+  setEl('ms-total-amt', RT.fmt(grandSubtotal, 2));
+  const submitBtnLabel = document.getElementById('ms-submit-btn-label');
+  if (submitBtnLabel) {
+    submitBtnLabel.textContent = grandSubtotal > 0 ? `Record Sale (${RT.fmt(grandSubtotal)})` : 'Record Sale (Enter)';
+  }
 }
 
 function resetMakeSaleForm() {
@@ -515,14 +748,17 @@ function resetMakeSaleForm() {
   if (buyerInput) buyerInput.value = 'Walk-in';
   const custType = document.getElementById('ms-customer-type');
   if (custType) custType.value = 'Walk-in';
-  const rateInput = document.getElementById('ms-rate');
-  if (rateInput) rateInput.dataset.autoPopulated = 'true';
 
   document.querySelectorAll('.ms-pay-pill').forEach(p => p.classList.toggle('active', p.dataset.pay === 'Cash'));
   const hidden = document.getElementById('ms-payment');
   if (hidden) hidden.value = 'Cash';
 
-  handleMakeSaleProductChange();
+  const container = document.getElementById('ms-items-container');
+  if (container) container.innerHTML = '';
+  _makeSaleRowSeq = 0;
+  _makeSaleActiveRowIds = [];
+  addMakeSaleRow();
+
   if (window.lucide) lucide.createIcons();
 }
 
@@ -566,66 +802,179 @@ async function withSubmissionLock(lockKey, buttonSelectorOrEl, asyncCallback) {
 
 async function handleMakeSaleSubmit() {
   const date      = document.getElementById('ms-date')?.value || RT.todayStr();
-  const productId = (document.getElementById('ms-product')?.value || '').trim();
-  const lotId     = (document.getElementById('ms-lot')?.value || '').trim();
-  const qty       = parseFloat(document.getElementById('ms-qty')?.value);
-  const rate      = parseFloat(document.getElementById('ms-rate')?.value);
   const custType  = document.getElementById('ms-customer-type')?.value || 'Walk-in';
   const buyer     = document.getElementById('ms-buyer')?.value?.trim() || 'Walk-in';
   const payment   = document.getElementById('ms-payment')?.value || 'Cash';
   const notes     = document.getElementById('ms-notes')?.value?.trim() || '';
 
   if (!validateField('ms-date', !!date, 'Please select transaction date')) return;
-  if (!validateField('ms-product', !!productId, 'Please select a product')) return;
-  if (!validateField('ms-qty', !isNaN(qty) && qty > 0, 'Quantity must be a positive number')) return;
-  if (!validateField('ms-rate', !isNaN(rate) && rate > 0, 'Unit rate must be greater than zero')) return;
   if (!validateField('ms-payment', !!payment, 'Please select a payment mode')) return;
 
-  const p = RT.getProductById(productId);
-  const lot = lotId ? RT.getLotById(lotId) : null;
+  const validItems = [];
+  for (const rowId of _makeSaleActiveRowIds) {
+    const prodSel = document.getElementById(`ms-product-${rowId}`);
+    const lotSel  = document.getElementById(`ms-lot-${rowId}`);
+    const qtyInput = document.getElementById(`ms-qty-${rowId}`);
+    const rateInput = document.getElementById(`ms-rate-${rowId}`);
 
-  if (lot && lot.remainingQty !== undefined && qty > lot.remainingQty) {
-    validateField('ms-qty', false, `Insufficient lot stock! Only ${lot.remainingQty} ${p ? p.unit : 'KG'} available in Lot #${lot.id}`);
+    const productId = (prodSel?.value || '').trim();
+    const lotId = (lotSel?.value || '').trim();
+    const qty = parseFloat(qtyInput?.value);
+    const rate = parseFloat(rateInput?.value);
+
+    // If row is completely untouched and we have other rows, skip it
+    if (!productId && isNaN(qty) && isNaN(rate) && _makeSaleActiveRowIds.length > 1) {
+      continue;
+    }
+
+    if (!validateField(`ms-product-${rowId}`, !!productId, 'Please select a product')) return;
+    if (!validateField(`ms-qty-${rowId}`, !isNaN(qty) && qty > 0, 'Quantity must be greater than zero')) return;
+    if (!validateField(`ms-rate-${rowId}`, !isNaN(rate) && rate > 0, 'Selling rate must be greater than zero')) return;
+
+    const p = RT.getProductById(productId);
+    if (!p || (Number(p.currentStock) || 0) <= 0) {
+      showToast(`Cannot sell ${p ? p.name : 'product'}: Completely out of stock (0 ${p ? p.unit : 'KG'})`, 'danger');
+      return;
+    }
+
+    const lot = lotId ? RT.getLotById(lotId) : null;
+    if (lot && lot.remainingQty !== undefined && Number(lot.remainingQty) <= 0) {
+      showToast(`Cannot sell from depleted Lot #${lot.id} for ${p.name}`, 'danger');
+      return;
+    }
+
+    const lotCost = lot ? lot.rate : (p ? p.avgCost : 0);
+    const rowSubtotal = qty * rate;
+    const rowCost = qty * lotCost;
+
+    validItems.push({
+      rowId,
+      productId,
+      productName: p ? p.name : 'Produce',
+      unit: p ? p.unit : 'KG',
+      lotId: lotId || '',
+      qty,
+      rate,
+      lotCost,
+      subtotal: rowSubtotal,
+      cogs: rowCost,
+      grossProfit: rowSubtotal - rowCost
+    });
+  }
+
+  if (validItems.length === 0) {
+    showToast('Please add at least one produce item with quantity and rate', 'warning');
     return;
   }
-  if (p && qty > p.currentStock) {
-    validateField('ms-qty', false, `Insufficient stock! Only ${p.currentStock} ${p.unit} available`);
-    return;
+
+  // Cross-row inventory allocation validation
+  const reqByLot = {};
+  const reqByProd = {};
+  for (const it of validItems) {
+    if (it.lotId) reqByLot[it.lotId] = (reqByLot[it.lotId] || 0) + it.qty;
+    reqByProd[it.productId] = (reqByProd[it.productId] || 0) + it.qty;
+  }
+
+  for (const it of validItems) {
+    const lot = it.lotId ? RT.getLotById(it.lotId) : null;
+    const p = RT.getProductById(it.productId);
+    if (lot && lot.remainingQty !== undefined && reqByLot[it.lotId] > lot.remainingQty) {
+      showToast(`Insufficient stock in Lot #${lot.id} for ${it.productName}! Total requested: ${reqByLot[it.lotId]} ${it.unit}, Available: ${lot.remainingQty} ${it.unit}`, 'danger');
+      return;
+    }
+    if (p && reqByProd[it.productId] > p.currentStock) {
+      showToast(`Insufficient inventory for ${it.productName}! Total requested: ${reqByProd[it.productId]} ${it.unit}, Available: ${p.currentStock} ${it.unit}`, 'danger');
+      return;
+    }
   }
 
   await withSubmissionLock('makeSale', '#btn-make-sale-submit', async () => {
     try {
-      const result = await RT.gasPost('createSale', {
-        date,
-        productId,
-        lotId: lotId || '',
-        quantity: qty,
-        rate,
-        customerType: custType,
-        buyer,
-        payment,
-        notes
+      const nextInvoiceNum = RT.SALES.length + 1;
+      const invoiceId = 'S' + String(nextInvoiceNum).padStart(3, '0');
+      let result = null;
+
+      try {
+        result = await RT.gasPost('createBatchSale', {
+          invoiceId,
+          date,
+          customerType: custType,
+          buyer,
+          payment,
+          notes,
+          items: validItems.map(it => ({
+            productId: it.productId,
+            lotId: it.lotId,
+            quantity: it.qty,
+            rate: it.rate
+          }))
+        });
+      } catch (batchErr) {
+        console.warn('[RT] createBatchSale fallback to sequential createSale:', batchErr.message);
+        for (let i = 0; i < validItems.length; i++) {
+          const it = validItems[i];
+          const itemRes = await RT.gasPost('createSale', {
+            date,
+            productId: it.productId,
+            lotId: it.lotId,
+            quantity: it.qty,
+            rate: it.rate,
+            customerType: custType,
+            buyer,
+            payment,
+            notes: notes ? `${notes} (Item ${i+1}/${validItems.length})` : ''
+          });
+          if (i === 0 && itemRes) result = itemRes;
+        }
+      }
+
+      const assignedId = (result && (result.invoiceId || result.id)) || invoiceId;
+      let totalBillRev = 0;
+      let totalBillCost = 0;
+
+      // Optimistic in-memory update across all items in RT.SALES
+      validItems.forEach(it => {
+        const p = RT.getProductById(it.productId);
+        const lot = it.lotId ? RT.getLotById(it.lotId) : null;
+        totalBillRev += it.subtotal;
+        totalBillCost += it.cogs;
+
+        const newSale = {
+          id: assignedId,
+          invoiceId: assignedId,
+          date: date || RT.todayStr(),
+          productId: it.productId,
+          productName: it.productName,
+          lotId: it.lotId || '',
+          quantity: it.qty,
+          rate: it.rate,
+          revenue: it.subtotal,
+          cogs: it.cogs,
+          grossProfit: it.grossProfit,
+          customerType: custType,
+          buyer,
+          payment,
+          status: 'paid',
+          notes: notes || ''
+        };
+        RT.SALES.unshift(newSale);
+
+        if (p) p.currentStock = Math.max(0, p.currentStock - it.qty);
+        if (lot) {
+          const curLotRem = lot.remainingQty !== undefined ? lot.remainingQty : lot.quantity;
+          lot.remainingQty = Math.max(0, curLotRem - it.qty);
+        }
       });
 
-      const newId = result.invoiceId || result.id || 'S001';
-      showToast(`Sale #${newId} recorded in Google Sheets — ${RT.fmt(result.revenue || qty * rate)} (${custType})`, 'success');
+      const totalProfit = totalBillRev - totalBillCost;
+      const marginPct = totalBillRev > 0 ? ((totalProfit / totalBillRev) * 100).toFixed(1) : '0.0';
+      showToast(`Bill #${assignedId} recorded — ${RT.fmt(totalBillRev)} (${validItems.length} produce item${validItems.length > 1 ? 's' : ''} for ${buyer}, ${totalProfit >= 0 ? '+' : ''}${marginPct}% margin)`, 'success');
 
-      // Clear form inputs
-      const qtyInput = document.getElementById('ms-qty');
-      if (qtyInput) qtyInput.value = '';
-      const rateInput = document.getElementById('ms-rate');
-      if (rateInput) {
-        rateInput.value = '';
-        rateInput.dataset.autoPopulated = 'true';
-      }
-      const notesInput = document.getElementById('ms-notes');
-      if (notesInput) notesInput.value = '';
+      resetMakeSaleForm();
+      renderMakeSaleLast10(assignedId);
 
-      await RT.refresh();
-      populateMakeSaleProducts();
-      handleMakeSaleProductChange();
-      renderMakeSaleLast10(newId);
-      document.getElementById('ms-product')?.focus();
+      // Silent non-blocking background synchronization with Google Sheets
+      RT.refresh(true).catch(err => console.warn('[RT] Silent sync warning:', err.message));
     } catch (err) {
       showToast(err.message || 'Failed to record sale in Google Sheets', 'danger');
     }
@@ -1863,10 +2212,40 @@ async function saveSale() {
       });
 
       closeModal();
-      const newId = result.invoiceId || result.id || 'S001';
-      showToast(`Sale #${newId} recorded in Google Sheets — ${RT.fmt(result.revenue || qty * rate)}`, 'success');
-      await RT.refresh();
+      const newId = result.invoiceId || result.id || `S${String(RT.SALES.length + 1).padStart(3, '0')}`;
+      const rev = Number(result.revenue !== undefined ? result.revenue : (qty * rate));
+      const p = RT.getProductById(productId);
+      const lot = lotId ? RT.getLotById(lotId) : null;
+      const cogs = Number(result.cogs !== undefined ? result.cogs : (lot ? lot.rate * qty : (p ? p.avgCost * qty : 0)));
+      const gp = Number(result.grossProfit !== undefined ? result.grossProfit : (rev - cogs));
+
+      const newSale = {
+        id: newId,
+        invoiceId: newId,
+        date: date || RT.todayStr(),
+        productId,
+        productName: p ? p.name : '',
+        lotId: lotId || '',
+        quantity: qty,
+        rate,
+        revenue: rev,
+        cogs,
+        grossProfit: gp,
+        customerType: 'Walk-in',
+        buyer,
+        payment,
+        status: 'paid'
+      };
+      RT.SALES.unshift(newSale);
+      if (p) p.currentStock = Math.max(0, p.currentStock - qty);
+      if (lot) {
+        const curRem = lot.remainingQty !== undefined ? lot.remainingQty : lot.quantity;
+        lot.remainingQty = Math.max(0, curRem - qty);
+      }
+
+      showToast(`Sale #${newId} recorded — ${RT.fmt(rev)}`, 'success');
       renderPage(STATE.page);
+      RT.refresh(true).catch(err => console.warn('[RT] Sync warning:', err.message));
     } catch (err) {
       showToast(err.message || 'Failed to record sale in Google Sheets', 'danger');
     }
@@ -1903,10 +2282,32 @@ async function savePurchase() {
       });
 
       closeModal();
-      const newId = result.lotId || result.id || 'P001';
-      showToast(`Purchase lot ${newId} posted to Google Sheets — ${RT.fmt(totalCost)} (Avg: ${RT.fmt(result.unitCost || totalCost / qty, 2)})`, 'success');
-      await RT.refresh();
+      const newId = result.lotId || result.id || `P${String(RT.PURCHASES.length + 1).padStart(3, '0')}`;
+      const prod = RT.getProductById(productId);
+      const sup = RT.getSupplierById(supplierId);
+      const newPurchase = {
+        id: newId,
+        lotId: newId,
+        date: date || RT.todayStr(),
+        productId,
+        productName: prod ? prod.name : '',
+        supplierId,
+        supplierName: sup ? sup.name : '',
+        quantity: qty,
+        totalCost,
+        rate: Number(result.unitCost !== undefined ? result.unitCost : (totalCost / qty)),
+        targetRate,
+        remainingQty: qty,
+        amountPaid: totalCost,
+        payment,
+        status: 'paid'
+      };
+      RT.PURCHASES.unshift(newPurchase);
+      if (prod) prod.currentStock += qty;
+
+      showToast(`Purchase lot ${newId} posted — ${RT.fmt(totalCost)}`, 'success');
       renderPage(STATE.page);
+      RT.refresh(true).catch(err => console.warn('[RT] Sync warning:', err.message));
     } catch (err) {
       showToast(err.message || 'Failed to record purchase in Google Sheets', 'danger');
     }
@@ -1942,9 +2343,22 @@ async function saveExpense() {
       });
 
       closeModal();
-      showToast(`Expense ${result.expenseId || ''} recorded in Google Sheets — ${RT.fmt(amount)}`, 'success');
-      await RT.refresh();
+      const expId = result.expenseId || result.id || `E${String(RT.EXPENSES.length + 1).padStart(3, '0')}`;
+      const newExp = {
+        id: expId,
+        expenseId: expId,
+        date: date || RT.todayStr(),
+        category,
+        description: desc,
+        amount,
+        paidBy: payMode,
+        paymentMode: payMode
+      };
+      RT.EXPENSES.unshift(newExp);
+
+      showToast(`Expense ${expId} recorded — ${RT.fmt(amount)}`, 'success');
       renderPage(STATE.page);
+      RT.refresh(true).catch(err => console.warn('[RT] Sync warning:', err.message));
     } catch (err) {
       showToast(err.message || 'Failed to record expense in Google Sheets', 'danger');
     }
@@ -2093,8 +2507,8 @@ function renderWastagePage() {
 
 function renderWastageStats() {
   const wastage = getTableData('wastage');
-  const totalWeight = wastage.reduce((s, w) => s + w.quantity, 0);
-  const totalLoss   = wastage.reduce((s, w) => s + w.lossAmount, 0);
+  const totalWeight = wastage.reduce((s, w) => s + (w.quantity !== undefined ? w.quantity : (w.wastedQty || 0)), 0);
+  const totalLoss   = wastage.reduce((s, w) => s + (w.lossAmount || 0), 0);
 
   const f = TABLE_FILTERS.wastage;
   const periodLabel = f.mode === 'today' ? 'today'
@@ -2171,7 +2585,7 @@ function renderWastageTable() {
         <td>${RT.fmtDate(w.date)}</td>
         <td class="col-primary" style="font-weight:600">${p ? p.name : '—'}</td>
         <td><span class="badge badge-neutral" style="font-size:11px">${lotLabel}</span></td>
-        <td class="num" style="color:var(--danger);font-weight:700">${RT.fmtNum(w.quantity)} ${p ? p.unit : 'KG'}</td>
+        <td class="num" style="color:var(--danger);font-weight:700">${RT.fmtNum(w.quantity !== undefined ? w.quantity : (w.wastedQty || 0))} ${p ? p.unit : 'KG'}</td>
         <td class="num">${RT.fmt(w.unitCost, 2)}</td>
         <td class="num col-amount" style="color:var(--danger);font-weight:700">${RT.fmt(w.lossAmount)}</td>
         <td><span class="badge" style="background:rgba(139,26,26,0.08);color:var(--danger);font-size:11px;font-weight:600">${w.reason}</span></td>
@@ -2290,10 +2704,31 @@ async function saveWastage() {
       });
 
       closeModal();
-      const newId = rec.wastageId || rec.id || '';
-      showToast(`Wastage record #${newId} saved in Google Sheets`, 'warning');
-      await RT.refresh();
+      const newId = rec.wastageId || rec.id || `W${String(RT.WASTAGE.length + 1).padStart(3, '0')}`;
+      const unitCost = lot ? (lot.rate || (lot.quantity > 0 ? lot.totalCost / lot.quantity : 0)) : (p ? p.avgCost : 0);
+      const newWastage = {
+        id: newId,
+        wastageId: newId,
+        date: date || RT.todayStr(),
+        productId,
+        productName: p ? p.name : '',
+        lotId: lotId || '',
+        quantity: qty,
+        wastedQty: qty,
+        unitCost,
+        lossAmount: Number(rec.lossAmount !== undefined ? rec.lossAmount : (qty * unitCost)),
+        reason,
+        notes
+      };
+      RT.WASTAGE.unshift(newWastage);
+      if (p) p.currentStock = Math.max(0, p.currentStock - qty);
+      if (lot && lot.remainingQty !== undefined) {
+        lot.remainingQty = Math.max(0, lot.remainingQty - qty);
+      }
+
+      showToast(`Wastage record #${newId} recorded`, 'warning');
       renderPage(STATE.page);
+      RT.refresh(true).catch(err => console.warn('[RT] Sync warning:', err.message));
     } catch (err) {
       showToast(err.message || 'Failed to save wastage in Google Sheets', 'danger');
     }
@@ -2336,9 +2771,25 @@ async function saveSupplier() {
       });
 
       closeModal();
-      showToast(`Supplier "${name}" registered in Google Sheets`, 'success');
-      await RT.refresh();
+      const newId = `SUP-${String(RT.SUPPLIERS.length + 1).padStart(3, '0')}`;
+      const newSup = {
+        id: newId,
+        supplierId: newId,
+        name,
+        phone,
+        location,
+        category,
+        supplyCategory: category,
+        status: 'active',
+        totalPurchases: 0,
+        outstanding: 0,
+        notes
+      };
+      RT.SUPPLIERS.unshift(newSup);
+
+      showToast(`Supplier "${name}" registered`, 'success');
       renderSuppliers();
+      RT.refresh(true).catch(err => console.warn('[RT] Sync warning:', err.message));
     } catch (err) {
       showToast(err.message || 'Failed to save supplier in Google Sheets', 'danger');
     }
